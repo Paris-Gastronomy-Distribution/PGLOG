@@ -1,0 +1,273 @@
+"use client";
+
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ButtonHTMLAttributes,
+  type ReactNode,
+} from "react";
+import { buttonClass, inputClass, type ButtonVariant } from "./styles";
+
+export { buttonClass, inputClass };
+
+/* ---------- Boutons ---------- */
+
+export function Button({
+  variant = "secondary",
+  size = "md",
+  className = "",
+  ...props
+}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant; size?: "sm" | "md" | "lg" }) {
+  return <button type="button" className={`${buttonClass(variant, size)} ${className}`} {...props} />;
+}
+
+export function IconButton({
+  label,
+  className = "",
+  children,
+  ...props
+}: ButtonHTMLAttributes<HTMLButtonElement> & { label: string }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white/65 transition hover:bg-white/[0.09] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70 active:scale-95 ${className}`}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+}
+
+export function Spinner({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg className={`animate-spin ${className}`} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" />
+      <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/* ---------- Champs ---------- */
+
+export function Field({
+  label,
+  htmlFor,
+  hint,
+  error,
+  children,
+}: {
+  label: string;
+  htmlFor: string;
+  hint?: ReactNode;
+  error?: string | null;
+  children: ReactNode;
+}) {
+  return (
+    <div className="space-y-2">
+      <label htmlFor={htmlFor} className="block text-[13px] font-medium text-white/75">
+        {label}
+      </label>
+      {children}
+      {error ? (
+        <p className="text-[13px] text-red-300" role="alert">
+          {error}
+        </p>
+      ) : hint ? (
+        <div className="text-[13px] text-white/45">{hint}</div>
+      ) : null}
+    </div>
+  );
+}
+
+export function Toggle({
+  id,
+  checked,
+  onChange,
+  disabled,
+  label,
+  description,
+}: {
+  id: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  disabled?: boolean;
+  label: string;
+  description?: ReactNode;
+}) {
+  return (
+    <div className={`flex items-start justify-between gap-4 ${disabled ? "opacity-50" : ""}`}>
+      <div>
+        <label htmlFor={id} className="block text-[14px] font-medium text-white/90">
+          {label}
+        </label>
+        {description && <div className="mt-1 text-[13px] text-white/45">{description}</div>}
+      </div>
+      <button
+        id={id}
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        disabled={disabled}
+        onClick={() => onChange(!checked)}
+        className={`relative mt-0.5 inline-flex h-7 w-12 shrink-0 items-center rounded-full transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70 ${checked ? "bg-white" : "bg-white/15"}`}
+      >
+        <span
+          className={`inline-block h-5 w-5 rounded-full shadow transition-transform ${checked ? "translate-x-6 bg-[#111113]" : "translate-x-1 bg-white"}`}
+        />
+      </button>
+    </div>
+  );
+}
+
+export const ACCENT_PRESETS = ["#111111", "#C38E2F", "#B4532A", "#1E3B2F", "#6B2737", "#2F4A7A", "#7D8C55", "#C2706A"];
+
+export function AccentPicker({ value, onChange, id }: { value: string; onChange: (v: string) => void; id: string }) {
+  const normalized = value.toLowerCase();
+  return (
+    <div className="flex flex-wrap items-center gap-2.5" role="radiogroup" aria-label="Couleur d'accent">
+      {ACCENT_PRESETS.map((c) => {
+        const active = c.toLowerCase() === normalized;
+        return (
+          <button
+            key={c}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            aria-label={c}
+            onClick={() => onChange(c)}
+            className={`h-9 w-9 rounded-full border transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70 ${active ? "scale-110 border-white ring-2 ring-white/30" : "border-white/15 hover:scale-105"}`}
+            style={{ background: c }}
+          />
+        );
+      })}
+      <label
+        htmlFor={id}
+        className="relative inline-flex h-9 cursor-pointer items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] pr-3 pl-1 text-[13px] text-white/70 hover:bg-white/[0.08]"
+      >
+        <span className="h-7 w-7 rounded-full border border-white/20" style={{ background: value }} />
+        {value.toUpperCase()}
+        <input
+          id={id}
+          type="color"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="absolute inset-0 cursor-pointer opacity-0"
+          aria-label="Couleur personnalisée"
+        />
+      </label>
+    </div>
+  );
+}
+
+/* ---------- Boîte de dialogue ---------- */
+
+export function Dialog({
+  open,
+  onClose,
+  title,
+  children,
+  wide,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  children: ReactNode;
+  wide?: boolean;
+}) {
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const d = ref.current;
+    if (!d) return;
+    if (open && !d.open) d.showModal();
+    if (!open && d.open) d.close();
+  }, [open]);
+
+  return (
+    <dialog
+      ref={ref}
+      onClose={onClose}
+      onClick={(e) => {
+        if (e.target === ref.current) onClose();
+      }}
+      className={`m-auto w-[calc(100%-32px)] ${wide ? "max-w-xl" : "max-w-md"} rounded-3xl border border-white/10 bg-[#1b1b1e] p-0 text-white shadow-[0_30px_80px_rgba(0,0,0,0.6)] backdrop:bg-black/60 backdrop:backdrop-blur-sm`}
+      aria-label={title}
+    >
+      {open && (
+        <div className="p-6 sm:p-7">
+          <h2 className="mb-5 text-lg font-semibold tracking-tight">{title}</h2>
+          {children}
+        </div>
+      )}
+    </dialog>
+  );
+}
+
+/* ---------- Notifications ---------- */
+
+interface ToastItem {
+  id: number;
+  text: string;
+  tone: "ok" | "error";
+}
+
+const ToastContext = createContext<(text: string, tone?: "ok" | "error") => void>(() => {});
+
+export function ToastProvider({ children }: { children: ReactNode }) {
+  const [items, setItems] = useState<ToastItem[]>([]);
+  const push = useCallback((text: string, tone: "ok" | "error" = "ok") => {
+    const id = Date.now() + Math.random();
+    setItems((cur) => [...cur.slice(-2), { id, text, tone }]);
+    setTimeout(() => setItems((cur) => cur.filter((t) => t.id !== id)), 2800);
+  }, []);
+  return (
+    <ToastContext.Provider value={push}>
+      {children}
+      <div className="pointer-events-none fixed inset-x-0 bottom-[max(20px,env(safe-area-inset-bottom))] z-50 flex flex-col items-center gap-2 px-4" aria-live="polite" role="status">
+        {items.map((t) => (
+          <div
+            key={t.id}
+            className={`flex items-center gap-2 rounded-full border px-4 py-2.5 text-sm font-medium shadow-[0_12px_30px_rgba(0,0,0,0.45)] backdrop-blur ${t.tone === "ok" ? "border-white/10 bg-[#232327]/95 text-white" : "border-red-400/30 bg-red-950/90 text-red-100"}`}
+          >
+            {t.tone === "ok" ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-emerald-300" aria-hidden="true">
+                <path d="M20 6 9 17l-5-5" />
+              </svg>
+            ) : null}
+            {t.text}
+          </div>
+        ))}
+      </div>
+    </ToastContext.Provider>
+  );
+}
+
+export const useToast = () => useContext(ToastContext);
+
+/* ---------- Presse-papiers ---------- */
+
+export async function copyToClipboard(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.cssText = "position:fixed;top:0;left:0;opacity:0;";
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try {
+      ok = document.execCommand("copy");
+    } catch {
+      ok = false;
+    }
+    ta.remove();
+    return ok;
+  }
+}

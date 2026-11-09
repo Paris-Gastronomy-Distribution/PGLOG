@@ -1,13 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+// Police Inter auto-hébergée (paquet npm) : aucun appel à Google Fonts,
+// ni au build, ni chez les visiteurs.
+import "@fontsource-variable/inter";
 import { getSiteUrl } from "@/lib/site";
 import "./globals.css";
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   metadataBase: getSiteUrl(),
@@ -27,7 +23,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="fr" className={inter.variable}>
+    <html lang="fr">
       {/* suppressHydrationWarning : certaines extensions (Grammarly…) ajoutent des attributs à <body>. */}
       <body suppressHydrationWarning>{children}</body>
     </html>

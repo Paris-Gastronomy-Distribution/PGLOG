@@ -9,8 +9,9 @@ Vous créez un catalogue sur Canva, vous l'exportez en PDF et vous l'envoyez ici
 > **Avancement**
 > ✅ Étape 1 : schéma Supabase et documentation
 > ✅ Étape 2 : viewer `/c/[slug]` avec un catalogue de démonstration (`/c/demo`)
-> ⏳ Étape 3 : page `/admin` (upload et conversion des PDF)
-> ⏳ Étape 4 : authentification et nettoyage
+> ✅ Étape 3 : interface `/admin` (accueil, création, import du PDF, écran de chargement, lien à envoyer, renommage, suppression)
+> ✅ Étape 4 (partielle) : connexion par mot de passe, middleware, vérification dans chaque action serveur
+> ⏳ Reste : cron quotidien anti-pause Supabase, test en conditions réelles avec Supabase
 
 ---
 
@@ -99,7 +100,9 @@ Vous créez un catalogue sur Canva, vous l'exportez en PDF et vous l'envoyez ici
    npm run dev
    ```
 5. Ouvrez <http://localhost:3000/c/demo> : le catalogue de démonstration s'affiche (il fonctionne même sans Supabase).
-6. Ouvrez <http://localhost:3000/admin> pour publier un vrai catalogue (disponible à partir de l'étape 3).
+6. Ouvrez <http://localhost:3000/admin>, connectez-vous avec `ADMIN_PASSWORD` et publiez un catalogue.
+
+> **Mode local** : tant que les 3 variables Supabase sont vides, `npm run dev` enregistre les catalogues sur votre ordinateur (dossier `.local-data/`, ignoré par git). Pratique pour tout essayer avant de créer le projet Supabase. Les liens générés ne fonctionnent alors que sur votre machine. Dès que les variables Supabase sont renseignées (puis le serveur redémarré), tout passe automatiquement par Supabase. En production, le mode local est toujours désactivé.
 
 ## 6. Déployer sur Vercel
 
@@ -130,16 +133,18 @@ Exemple avec `catalogues.mondomaine.fr`. Un sous-domaine est recommandé : il ne
 
 ## 8. Utilisation au quotidien
 
-> Disponible à partir des étapes 3 et 4.
-
-1. **Sur Canva** : *Partager → Télécharger → PDF Standard* (ou *PDF Impression*). Le poids maximum est de 50 Mo.
-2. Ouvrez `https://votre-domaine/admin` et saisissez le mot de passe (`ADMIN_PASSWORD`).
-3. Renseignez le **titre**. Le **slug** (la fin du lien) se remplit tout seul et reste modifiable.
-4. Ajoutez une **description** facultative (elle apparaît dans l'aperçu WhatsApp/LinkedIn) et choisissez une **couleur d'accent**.
-5. Cochez **Autoriser le téléchargement du PDF** si vos clients doivent pouvoir récupérer le fichier original.
-6. Déposez le PDF dans la zone prévue. La barre de progression indique la page en cours (« page 7/24 »). **Gardez l'onglet ouvert** jusqu'à la fin.
-7. Cliquez sur **Copier le lien** et envoyez-le à vos clients.
-8. Pour retirer un catalogue, cliquez sur **Supprimer** : la fiche et tous ses fichiers sont effacés.
+1. **Sur Canva** : *Partager → Télécharger → PDF Standard*. Le poids maximum est de 50 Mo (*PDF Impression* est souvent trop lourd).
+2. Ouvrez `https://votre-domaine/admin` et saisissez le mot de passe (`ADMIN_PASSWORD`). La session dure 30 jours.
+3. **Accueil** : la liste de vos catalogues. Cliquez sur **Nouveau catalogue**.
+4. **1 · Le PDF** : glissez le fichier dans la zone (ou cliquez pour le choisir). Un aperçu de la couverture et le nombre de pages s'affichent. Le titre est pré-rempli depuis le nom du fichier.
+5. **2 · Les informations** :
+   - **Titre** : visible par vos clients et dans l'aperçu WhatsApp/LinkedIn ;
+   - **Lien** : se remplit tout seul depuis le titre, reste modifiable, et indique s'il est disponible ;
+   - **Description** (facultatif), **couleur des boutons** du lecteur ;
+   - **Autoriser le téléchargement du PDF** : ajoute le bouton « Télécharger » (le PDF original est alors conservé en ligne).
+6. Cliquez sur **Publier le catalogue**. L'écran de chargement affiche la progression réelle (« Conversion de la page 7/24 »). **Gardez l'onglet ouvert** : la conversion se fait dans votre navigateur. **Annuler** nettoie ce qui a déjà été envoyé.
+7. **Lien prêt** : **Copier le lien**, **Ouvrir**, ou envoyez-le directement par **WhatsApp** ou **e-mail**.
+8. Depuis l'accueil, chaque catalogue propose : **Copier le lien**, **Ouvrir**, **Renommer / modifier** (titre, description, couleur, téléchargement : le lien ne change pas) et **Supprimer** (la fiche et tous ses fichiers sont effacés, le lien ne fonctionne plus).
 
 ## 9. Limites du gratuit
 
@@ -174,6 +179,8 @@ Canva ─PDF─▶ /admin (navigateur)
 - **Cache** : chaque page catalogue est mise en cache 5 minutes (ISR) puis servie instantanément. L'admin invalide le cache à la création et à la suppression d'un catalogue.
 - **Images** : servies directement par Supabase (`<img>`), sans passer par l'optimiseur d'images de Vercel, ce qui évite ses quotas.
 - **Catalogue de démonstration** : `/c/demo` est servi depuis `public/demo/`. Les fichiers sont générés par `node scripts/generate-demo.mjs`.
+- **Administration** : `/admin` est protégé par un cookie de session signé (HMAC, `httpOnly`, 30 jours). Le middleware bloque `/admin` sans session, et chaque action serveur (création, modification, suppression) revérifie la session. Les fichiers partent du navigateur directement vers Supabase via des URLs d'upload signées, valables uniquement pour le catalogue en cours.
+- **Police** : Inter, auto-hébergée via le paquet npm `@fontsource-variable/inter` (aucun appel à Google).
 
 ### Commandes utiles
 
