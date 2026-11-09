@@ -8,7 +8,7 @@ Vous créez un catalogue sur Canva, vous l'exportez en PDF et vous l'envoyez ici
 
 > **Avancement**
 > ✅ Étape 1 : schéma Supabase et documentation
-> ⏳ Étape 2 : viewer `/c/[slug]` avec un catalogue de démonstration (`/c/demo`)
+> ✅ Étape 2 : viewer `/c/[slug]` avec un catalogue de démonstration (`/c/demo`)
 > ⏳ Étape 3 : page `/admin` (upload et conversion des PDF)
 > ⏳ Étape 4 : authentification et nettoyage
 
@@ -171,6 +171,7 @@ Canva ─PDF─▶ /admin (navigateur)
 - **Stack** : Next.js 15 (App Router) · TypeScript · Tailwind CSS · Supabase · pdfjs-dist · page-flip (StPageFlip).
 - **Lecture des catalogues** : côté serveur, avec la clé `service_role`. La table est protégée par la RLS sans aucune policy publique, donc la clé anon ne permet pas de lister les catalogues. Un lien n'est connu que de ceux qui le reçoivent.
 - **Indexation** : les pages catalogue sont marquées `noindex` et n'apparaissent pas dans Google.
+- **Cache** : chaque page catalogue est mise en cache 5 minutes (ISR) puis servie instantanément. L'admin invalide le cache à la création et à la suppression d'un catalogue.
 - **Images** : servies directement par Supabase (`<img>`), sans passer par l'optimiseur d'images de Vercel, ce qui évite ses quotas.
 - **Catalogue de démonstration** : `/c/demo` est servi depuis `public/demo/`. Les fichiers sont générés par `node scripts/generate-demo.mjs`.
 
