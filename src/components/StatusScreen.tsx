@@ -51,3 +51,13 @@ export function NotFoundScreen() {
     </StatusScreen>
   );
 }
+
+/** 404 des adresses qui ne sont pas des catalogues. */
+export function PageNotFoundScreen() {
+  return (
+    <StatusScreen icon={<BookGlyph />} eyebrow="Erreur 404" title="Page introuvable">
+      <p>Le lien est peut-être incomplet, ou ce catalogue n&apos;est plus disponible.</p>
+      <p className="mt-2">Vérifiez l&apos;adresse ou demandez un nouveau lien à votre interlocuteur.</p>
+    </StatusScreen>
+  );
+}

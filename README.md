@@ -92,7 +92,7 @@ Vous créez un catalogue sur Canva, vous l'exportez en PDF et vous l'envoyez ici
    | `ADMIN_PASSWORD` | oui | Mot de passe de `/admin` (16 caractères minimum conseillés) |
    | `NEXT_PUBLIC_SITE_URL` | non | URL publique du site, pour les liens absolus |
    | `CRON_SECRET` | conseillé en production | Protège le cron quotidien qui garde Supabase actif |
-   | `ENABLE_DEMO` | non | `true` pour garder `/c/demo` en production (toujours actif en local) |
+   | `ENABLE_DEMO` | non | `true` pour garder `/c/demo` une fois Supabase configuré |
 
 4. Lancez le serveur de développement :
    ```bash
@@ -101,7 +101,7 @@ Vous créez un catalogue sur Canva, vous l'exportez en PDF et vous l'envoyez ici
 5. Ouvrez <http://localhost:3000/c/demo> : le catalogue de démonstration s'affiche (il fonctionne même sans Supabase).
 6. Ouvrez <http://localhost:3000/admin>, connectez-vous avec `ADMIN_PASSWORD` et publiez un catalogue.
 
-> **Mode local** : tant que les 3 variables Supabase sont vides, `npm run dev` enregistre les catalogues sur votre ordinateur (dossier `.local-data/`, ignoré par git). Pratique pour tout essayer avant de créer le projet Supabase. Les liens générés ne fonctionnent alors que sur votre machine. Dès que les variables Supabase sont renseignées (puis le serveur redémarré), tout passe automatiquement par Supabase. En production, le mode local est toujours désactivé.
+> **Mode local** : tant que les 3 variables Supabase sont vides, le site (`npm run dev` ou `npm run start`) enregistre les catalogues sur votre ordinateur (dossier `.local-data/`, ignoré par git). Pratique pour tout essayer avant de créer le projet Supabase. Les liens générés ne fonctionnent alors que sur votre machine. Dès que les variables Supabase sont renseignées (puis le serveur redémarré), tout passe automatiquement par Supabase. Sur Vercel, le mode local n'existe pas.
 
 ## 6. Déployer sur Vercel
 
@@ -178,7 +178,7 @@ Canva ─PDF─▶ /admin (navigateur)
 - **Indexation** : les pages catalogue sont marquées `noindex` et n'apparaissent pas dans Google.
 - **Cache** : chaque page catalogue est mise en cache 5 minutes (ISR) puis servie instantanément. L'admin invalide le cache à la création et à la suppression d'un catalogue.
 - **Images** : servies directement par Supabase (`<img>`), sans passer par l'optimiseur d'images de Vercel, ce qui évite ses quotas.
-- **Catalogue de démonstration** : `/c/demo` est servi depuis `public/demo/` (fichiers générés par `node scripts/generate-demo.mjs`). Actif en local, désactivé en production sauf si `ENABLE_DEMO=true`.
+- **Catalogue de démonstration** : `/c/demo` est servi depuis `public/demo/` (fichiers générés par `node scripts/generate-demo.mjs`). Visible tant que Supabase n'est pas configuré, puis masqué automatiquement (sauf `ENABLE_DEMO=true`).
 - **En-têtes HTTP** : pas d'en-tête `X-Powered-By`, `nosniff` partout, et l'administration refuse d'être affichée dans une iframe.
 - **Administration** : `/admin` est protégé par un cookie de session signé (HMAC, `httpOnly`, 30 jours). Le middleware bloque `/admin` sans session, et chaque action serveur (création, modification, suppression) revérifie la session. Les fichiers partent du navigateur directement vers Supabase via des URLs d'upload signées, valables uniquement pour le catalogue en cours.
 - **Police** : Inter, auto-hébergée via le paquet npm `@fontsource-variable/inter` (aucun appel à Google).

@@ -6,10 +6,10 @@ import type { CatalogRow } from "../types";
 import { StoreError, type CatalogPatch, type CatalogStore, type NewCatalog } from "./types";
 
 /**
- * Stockage de DÉVELOPPEMENT uniquement (npm run dev sans Supabase) :
+ * Stockage LOCAL (sur votre ordinateur, tant que Supabase n'est pas configuré) :
  *   .local-data/catalogs.json   les fiches
  *   .local-data/storage/{slug}/ les fichiers, servis par /api/dev-storage/
- * Jamais utilisé en production (voir store/index.ts).
+ * Jamais utilisé sur Vercel (voir store/index.ts).
  */
 const LOCAL_ROOT = path.join(process.cwd(), ".local-data");
 const LOCAL_STORAGE_DIR = path.join(LOCAL_ROOT, "storage");

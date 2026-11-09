@@ -3,15 +3,10 @@ import type { ViewerCatalog } from "./types";
 /**
  * Catalogue de démonstration servi sur /c/demo, sans Supabase.
  * Fichiers générés par `node scripts/generate-demo.mjs` dans public/demo/.
- *
- * Actif en développement ; en production seulement si ENABLE_DEMO=true,
- * pour qu'aucun faux catalogue ne traîne sur le domaine de vos clients.
+ * Visible tant que Supabase n'est pas configuré (ou si ENABLE_DEMO=true) :
+ * voir getViewerCatalog() dans catalogs.ts.
  */
 export const DEMO_SLUG = "demo";
-
-export function isDemoEnabled(): boolean {
-  return process.env.NODE_ENV !== "production" || process.env.ENABLE_DEMO === "true";
-}
 
 const PAGE_COUNT = 24;
 

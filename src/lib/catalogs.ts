@@ -1,9 +1,9 @@
 import "server-only";
 import { cache } from "react";
 import { FALLBACK_PAGE_SIZE, isValidSlug, ogImagePath, pagePath, pdfDownloadUrl, withVersion } from "./catalog-urls";
-import { DEMO_CATALOG, DEMO_SLUG, isDemoEnabled } from "./demo-catalog";
+import { DEMO_CATALOG, DEMO_SLUG } from "./demo-catalog";
 import { getSiteUrl } from "./site";
-import { getStore } from "./store";
+import { getBackendStatus, getStore } from "./store";
 import type { CatalogStore } from "./store/types";
 import type { CatalogRow, ViewerCatalog } from "./types";
 
@@ -24,6 +24,16 @@ function toViewerCatalog(row: CatalogRow, store: CatalogStore): ViewerCatalog {
     ogImage: withVersion(store.publicUrl(ogImagePath(row.slug)), version),
     downloadUrl: row.allow_download && row.pdf_url ? pdfDownloadUrl(row.pdf_url, row.slug) : null,
   };
+}
+
+/**
+ * La démo /c/demo reste visible tant que Supabase n'est pas branché (pour
+ * avoir quelque chose à montrer), puis disparaît automatiquement pour
+ * qu'aucun faux catalogue ne traîne sur votre domaine. ENABLE_DEMO=true
+ * la force.
+ */
+function isDemoEnabled(): boolean {
+  return process.env.ENABLE_DEMO === "true" || getBackendStatus().kind !== "supabase";
 }
 
 /**

@@ -5,8 +5,8 @@ import { getBackendStatus } from "@/lib/store";
 import { localFilePath } from "@/lib/store/local-store";
 
 /**
- * Stockage de fichiers du MODE LOCAL (développement sans Supabase).
- * Désactivé dès que Supabase est configuré, et toujours en production.
+ * Stockage de fichiers du MODE LOCAL (sur votre ordinateur, sans Supabase).
+ * Désactivé dès que Supabase est configuré, et toujours sur Vercel.
  */
 
 const TYPES: Record<string, string> = {

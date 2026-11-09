@@ -12,13 +12,14 @@ export type BackendStatus =
 const SUPABASE_VARS = ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY", "SUPABASE_SERVICE_ROLE_KEY"] as const;
 
 /**
- * Supabase dès que ses 3 variables sont définies. Sinon, en développement
- * seulement, stockage local sur le disque pour pouvoir tout tester.
+ * Supabase dès que ses 3 variables sont définies. Sinon, sur votre ordinateur
+ * (npm run dev ou npm run start), stockage local sur le disque pour pouvoir
+ * tout tester. Jamais sur Vercel : son disque n'est pas conservé.
  */
 export function getBackendStatus(): BackendStatus {
   const missing = SUPABASE_VARS.filter((name) => !process.env[name]);
   if (missing.length === 0) return { kind: "supabase" };
-  if (process.env.NODE_ENV === "development") return { kind: "local" };
+  if (process.env.VERCEL !== "1") return { kind: "local" };
   return { kind: "missing", missing: [...missing] };
 }
 
