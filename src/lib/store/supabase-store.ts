@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { STORAGE_BUCKET, storagePublicUrl } from "../catalog-urls";
+import { isNetworkError } from "../supabase/timeout-fetch";
 import type { CatalogRow } from "../types";
 import { StoreError, type CatalogPatch, type CatalogStore, type NewCatalog, type UploadTarget } from "./types";
 
@@ -24,6 +25,9 @@ export function createSupabaseStore(db: SupabaseClient): CatalogStore {
   const bucket = () => db.storage.from(STORAGE_BUCKET);
 
   const fail = (what: string, message: string): never => {
+    if (isNetworkError(message)) {
+      throw new StoreError(`${what} : Supabase ne répond pas (connexion instable ?). Réessayez dans un instant.`);
+    }
     throw new StoreError(`${what} : ${message}`);
   };
 

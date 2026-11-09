@@ -70,6 +70,10 @@ drop policy if exists "Enable read access for all users" on public.catalogs;
 -- Ceinture et bretelles : retirer les droits directs des rôles publics.
 revoke all on table public.catalogs from anon, authenticated;
 
+-- Le serveur (clé service_role) doit pouvoir lire et écrire, même si l'option
+-- « Automatically expose new tables » a été décochée à la création du projet.
+grant select, insert, update, delete on table public.catalogs to service_role;
+
 
 -- -----------------------------------------------------------------------------
 -- 3. Bucket Storage `catalogs`

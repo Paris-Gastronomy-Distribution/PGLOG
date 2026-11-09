@@ -34,6 +34,7 @@ export function NewCatalogFlow({ siteHost, isLocal }: { siteHost: string; isLoca
   const [accent, setAccent] = useState("#111111");
   const [allowDownload, setAllowDownload] = useState(false);
   const [check, setCheck] = useState<SlugCheck | null>(null);
+  const [recheck, setRecheck] = useState(0);
 
   /* ---------- PDF ---------- */
   const fileRef = useRef<File | null>(null);
@@ -54,15 +55,20 @@ export function NewCatalogFlow({ siteHost, isLocal }: { siteHost: string; isLoca
     if (issue) return;
     let cancelled = false;
     const t = setTimeout(async () => {
-      const res = await checkSlugAction(effectiveSlug);
-      if (cancelled) return;
-      setCheck(res.ok ? { slug: effectiveSlug, available: res.data.available } : { slug: effectiveSlug, available: null, error: res.error });
+      let next: SlugCheck;
+      try {
+        const res = await checkSlugAction(effectiveSlug);
+        next = res.ok ? { slug: effectiveSlug, available: res.data.available } : { slug: effectiveSlug, available: null, error: res.error };
+      } catch {
+        next = { slug: effectiveSlug, available: null, error: "Vérification impossible (connexion interrompue)." };
+      }
+      if (!cancelled) setCheck(next);
     }, 350);
     return () => {
       cancelled = true;
       clearTimeout(t);
     };
-  }, [effectiveSlug, issue]);
+  }, [effectiveSlug, issue, recheck]);
 
   const slugStatus: { tone: "ok" | "error" | "muted"; text: string } = issue
     ? { tone: issue === "empty" ? "muted" : "error", text: issue === "empty" && !title ? "Se remplit automatiquement depuis le titre." : SLUG_MESSAGES[issue] }
@@ -251,6 +257,18 @@ export function NewCatalogFlow({ siteHost, isLocal }: { siteHost: string; isLoca
               <span className={slugStatus.tone === "ok" ? "text-emerald-300" : slugStatus.tone === "error" ? "text-red-300" : ""}>
                 {slugStatus.tone === "ok" && <CheckIcon width={14} height={14} className="mr-1 inline -translate-y-px" />}
                 {slugStatus.text}
+                {check?.slug === effectiveSlug && check.error && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCheck(null);
+                      setRecheck((n) => n + 1);
+                    }}
+                    className="ml-2 font-medium text-white underline underline-offset-4 hover:text-white/80"
+                  >
+                    Réessayer
+                  </button>
+                )}
               </span>
             }
           >
