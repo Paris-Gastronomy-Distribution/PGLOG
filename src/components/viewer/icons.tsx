@@ -93,10 +93,3 @@ export const RefreshIcon = (p: SVGProps<SVGSVGElement>) => (
     <path d="M21 3v6h-6" />
   </Icon>
 );
-
-export const BookIcon = (p: SVGProps<SVGSVGElement>) => (
-  <Icon {...p}>
-    <path d="M12 6.5C10.5 5 8 4.5 4 4.5v14c4 0 6.5.5 8 2 1.5-1.5 4-2 8-2v-14c-4 0-6.5.5-8 2Z" />
-    <path d="M12 6.5v14" />
-  </Icon>
-);

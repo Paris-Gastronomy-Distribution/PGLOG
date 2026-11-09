@@ -11,8 +11,8 @@ import { StoreError, type CatalogPatch, type CatalogStore, type NewCatalog } fro
  *   .local-data/storage/{slug}/ les fichiers, servis par /api/dev-storage/
  * Jamais utilisé en production (voir store/index.ts).
  */
-export const LOCAL_ROOT = path.join(process.cwd(), ".local-data");
-export const LOCAL_STORAGE_DIR = path.join(LOCAL_ROOT, "storage");
+const LOCAL_ROOT = path.join(process.cwd(), ".local-data");
+const LOCAL_STORAGE_DIR = path.join(LOCAL_ROOT, "storage");
 const DB_FILE = path.join(LOCAL_ROOT, "catalogs.json");
 
 async function readAll(): Promise<CatalogRow[]> {

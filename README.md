@@ -6,12 +6,9 @@ Vous créez un catalogue sur Canva, vous l'exportez en PDF et vous l'envoyez ici
 - **Conversion dans le navigateur** : le PDF est découpé en images WebP par votre navigateur (pdf.js) au moment de l'upload. Le serveur ne fait aucun calcul lourd et les clients ne téléchargent jamais le PDF pour feuilleter.
 - **Aperçu soigné** : titre, description et image de couverture apparaissent quand le lien est collé dans WhatsApp, LinkedIn ou un mail.
 
-> **Avancement**
-> ✅ Étape 1 : schéma Supabase et documentation
-> ✅ Étape 2 : viewer `/c/[slug]` avec un catalogue de démonstration (`/c/demo`)
-> ✅ Étape 3 : interface `/admin` (accueil, création, import du PDF, écran de chargement, lien à envoyer, renommage, suppression)
-> ✅ Étape 4 (partielle) : connexion par mot de passe, middleware, vérification dans chaque action serveur
-> ⏳ Reste : cron quotidien anti-pause Supabase, test en conditions réelles avec Supabase
+> **Avancement** : le code est complet.
+> ✅ Schéma Supabase · ✅ Lecteur `/c/[slug]` · ✅ Administration `/admin` (création, import, chargement, lien, renommage, suppression) · ✅ Connexion par mot de passe · ✅ Cron anti-pause Supabase
+> 👉 À faire de votre côté pour être en ligne : créer le projet Supabase (étapes 2 à 4) puis déployer sur Vercel (étape 6).
 
 ---
 
@@ -27,6 +24,7 @@ Vous créez un catalogue sur Canva, vous l'exportez en PDF et vous l'envoyez ici
 8. [Utilisation au quotidien](#8-utilisation-au-quotidien)
 9. [Limites du gratuit](#9-limites-du-gratuit)
 10. [Architecture et sécurité](#10-architecture-et-sécurité)
+11. [Dépannage](#11-dépannage)
 
 ---
 
@@ -93,7 +91,8 @@ Vous créez un catalogue sur Canva, vous l'exportez en PDF et vous l'envoyez ici
    | `SUPABASE_SERVICE_ROLE_KEY` | oui | Clé secrète, utilisée uniquement côté serveur |
    | `ADMIN_PASSWORD` | oui | Mot de passe de `/admin` (16 caractères minimum conseillés) |
    | `NEXT_PUBLIC_SITE_URL` | non | URL publique du site, pour les liens absolus |
-   | `CRON_SECRET` | non | Protège le cron quotidien qui garde Supabase actif |
+   | `CRON_SECRET` | conseillé en production | Protège le cron quotidien qui garde Supabase actif |
+   | `ENABLE_DEMO` | non | `true` pour garder `/c/demo` en production (toujours actif en local) |
 
 4. Lancez le serveur de développement :
    ```bash
@@ -109,11 +108,12 @@ Vous créez un catalogue sur Canva, vous l'exportez en PDF et vous l'envoyez ici
 1. Poussez votre code sur GitHub (branche `main`).
 2. Sur <https://vercel.com/new>, cliquez sur **Import** en face du dépôt `PGLOG`. Si le dépôt n'apparaît pas, cliquez sur *Adjust GitHub App Permissions* et donnez l'accès au dépôt.
 3. **Framework Preset** : *Next.js* (détecté automatiquement). Ne modifiez ni *Root Directory* ni les commandes de build.
-4. Dépliez **Environment Variables** et ajoutez une à une les variables de votre `.env.local` (même nom, même valeur). Pour `NEXT_PUBLIC_SITE_URL`, laissez vide pour l'instant ou mettez l'URL définitive si vous la connaissez.
+4. Dépliez **Environment Variables** et ajoutez une à une les variables de votre `.env.local` (même nom, même valeur) : les 3 variables Supabase, `ADMIN_PASSWORD` (choisissez un **vrai** mot de passe, pas celui de test) et `CRON_SECRET` (chaîne aléatoire, voir `.env.example`). Pour `NEXT_PUBLIC_SITE_URL`, laissez vide pour l'instant ou mettez l'URL définitive si vous la connaissez.
 5. Cliquez sur **Deploy** et attendez la fin du build (1 à 2 minutes).
-6. Vercel affiche l'URL du site (`https://pglog-xxxx.vercel.app`). Ouvrez `https://…/c/demo` pour vérifier.
-7. Les déploiements suivants sont automatiques : chaque `git push` sur `main` redéploie le site.
-8. Si vous modifiez une variable d'environnement plus tard : **Project → Settings → Environment Variables**, puis **Deployments → ⋯ → Redeploy** pour qu'elle soit prise en compte.
+6. Vercel affiche l'URL du site (`https://pglog-xxxx.vercel.app`). Ouvrez `https://…/admin`, connectez-vous et publiez un premier catalogue pour vérifier toute la chaîne.
+7. Le cron anti-pause est créé automatiquement à partir de `vercel.json` (visible dans **Settings → Cron Jobs**) : il interroge la base une fois par jour.
+8. Les déploiements suivants sont automatiques : chaque `git push` sur `main` redéploie le site.
+9. Si vous modifiez une variable d'environnement plus tard : **Project → Settings → Environment Variables**, puis **Deployments → ⋯ → Redeploy** pour qu'elle soit prise en compte.
 
 ## 7. Brancher un domaine personnalisé
 
@@ -128,7 +128,7 @@ Exemple avec `catalogues.mondomaine.fr`. Un sous-domaine est recommandé : il ne
    Recopiez **exactement** les valeurs affichées par Vercel.
 4. Chez votre registrar (OVHcloud, Gandi, IONOS…), ouvrez la **zone DNS** du domaine et ajoutez cet enregistrement. Chez OVHcloud : *Web Cloud → Noms de domaine → votre domaine → Zone DNS → Ajouter une entrée*.
 5. Attendez la propagation (de quelques minutes à quelques heures). Dans Vercel, le domaine passe à **Valid Configuration** et le certificat HTTPS est créé automatiquement (gratuit).
-6. Dans **Settings → Environment Variables**, renseignez `NEXT_PUBLIC_SITE_URL=https://catalogues.mondomaine.fr` puis redéployez (étape 6.8).
+6. Dans **Settings → Environment Variables**, renseignez `NEXT_PUBLIC_SITE_URL=https://catalogues.mondomaine.fr` puis redéployez (étape 6.9).
 7. Testez l'aperçu d'un lien en le collant dans WhatsApp ou LinkedIn. Pour LinkedIn, le *Post Inspector* (<https://www.linkedin.com/post-inspector/>) force le rafraîchissement de l'aperçu.
 
 ## 8. Utilisation au quotidien
@@ -153,7 +153,7 @@ Exemple avec `catalogues.mondomaine.fr`. Un sous-domaine est recommandé : il ne
 | Supabase Storage | 1 Go de stockage | ~150 à 300 catalogues de 24 pages sans PDF. Un PDF stocké pour téléchargement peut peser jusqu'à 50 Mo. |
 | Supabase Storage | 50 Mo max par fichier | Taille maximale d'un PDF |
 | Supabase egress | 5 Go/mois | ~1 000 à 2 000 lectures complètes d'un catalogue de 24 pages. Le chargement progressif ne télécharge que les pages réellement feuilletées. |
-| Supabase | **Pause après 7 jours sans activité** | Un cron Vercel quotidien (étape 4) interroge la base pour éviter la pause. Si le projet est quand même en pause : dashboard Supabase → *Restore project*. |
+| Supabase | **Pause après 7 jours sans activité** | Le cron Vercel quotidien (`/api/keepalive`, déclaré dans `vercel.json`) interroge la base pour éviter la pause. Si le projet est quand même en pause : dashboard Supabase → *Restore project*. |
 | Vercel Hobby | 100 Go de bande passante/mois | Largement suffisant : les images sont servies par Supabase. |
 
 ⚠️ **Conditions d'utilisation de Vercel** : le plan Hobby est réservé à un usage **personnel et non commercial**. Pour un usage professionnel strict, Vercel demande le plan Pro. L'alternative gratuite qui autorise l'usage commercial est Cloudflare Workers (avec OpenNext), qui demande quelques adaptations.
@@ -178,7 +178,8 @@ Canva ─PDF─▶ /admin (navigateur)
 - **Indexation** : les pages catalogue sont marquées `noindex` et n'apparaissent pas dans Google.
 - **Cache** : chaque page catalogue est mise en cache 5 minutes (ISR) puis servie instantanément. L'admin invalide le cache à la création et à la suppression d'un catalogue.
 - **Images** : servies directement par Supabase (`<img>`), sans passer par l'optimiseur d'images de Vercel, ce qui évite ses quotas.
-- **Catalogue de démonstration** : `/c/demo` est servi depuis `public/demo/`. Les fichiers sont générés par `node scripts/generate-demo.mjs`.
+- **Catalogue de démonstration** : `/c/demo` est servi depuis `public/demo/` (fichiers générés par `node scripts/generate-demo.mjs`). Actif en local, désactivé en production sauf si `ENABLE_DEMO=true`.
+- **En-têtes HTTP** : pas d'en-tête `X-Powered-By`, `nosniff` partout, et l'administration refuse d'être affichée dans une iframe.
 - **Administration** : `/admin` est protégé par un cookie de session signé (HMAC, `httpOnly`, 30 jours). Le middleware bloque `/admin` sans session, et chaque action serveur (création, modification, suppression) revérifie la session. Les fichiers partent du navigateur directement vers Supabase via des URLs d'upload signées, valables uniquement pour le catalogue en cours.
 - **Police** : Inter, auto-hébergée via le paquet npm `@fontsource-variable/inter` (aucun appel à Google).
 
@@ -191,3 +192,16 @@ Canva ─PDF─▶ /admin (navigateur)
 | `npm run start` | Lance le build de production en local |
 | `npm run lint` | Vérification ESLint |
 | `node scripts/generate-demo.mjs` | Régénère le catalogue de démonstration |
+
+## 11. Dépannage
+
+| Symptôme | Cause probable | Solution |
+|---|---|---|
+| `/admin` affiche « Configuration Supabase requise » | Variables Supabase absentes sur Vercel | Ajoutez-les (étape 6.4) puis redéployez (étape 6.9). |
+| « Mot de passe non configuré » sur la page de connexion | `ADMIN_PASSWORD` absent | Ajoutez-le dans `.env.local` ou dans Vercel, puis redémarrez / redéployez. |
+| La publication échoue après plusieurs essais | Connexion instable pendant l'envoi | Cliquez sur **Réessayer** : les fichiers partiels sont nettoyés automatiquement. |
+| « Ce navigateur ne sait pas créer d'images WebP » | Safari | Utilisez Chrome, Edge ou Firefox pour l'administration (les clients, eux, peuvent utiliser Safari). |
+| « Ce PDF pèse … la limite est de 50 Mo » | Export *PDF Impression* | Sur Canva, exportez en *PDF Standard*. |
+| Les catalogues renvoient une erreur après des semaines sans visite | Projet Supabase mis en pause | Dashboard Supabase → *Restore project*, et vérifiez que `CRON_SECRET` est bien défini. |
+| `npm run dev` : *address already in use :::3000* | Un ancien serveur tourne encore | Fermez-le (Gestionnaire des tâches → *Node.js*) ou lancez `npm run dev -- -p 3001`. |
+| Un lien collé dans LinkedIn montre un ancien aperçu | Cache de LinkedIn | Passez le lien dans le *Post Inspector* LinkedIn. |

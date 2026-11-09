@@ -1,7 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { FALLBACK_PAGE_SIZE, isValidSlug, ogImagePath, pagePath, pdfDownloadUrl, withVersion } from "./catalog-urls";
-import { DEMO_CATALOG, DEMO_SLUG } from "./demo-catalog";
+import { DEMO_CATALOG, DEMO_SLUG, isDemoEnabled } from "./demo-catalog";
 import { getSiteUrl } from "./site";
 import { getStore } from "./store";
 import type { CatalogStore } from "./store/types";
@@ -34,7 +34,7 @@ function toViewerCatalog(row: CatalogRow, store: CatalogStore): ViewerCatalog {
  */
 export const getViewerCatalog = cache(async (slug: string): Promise<ViewerCatalog | null> => {
   if (!isValidSlug(slug)) return null;
-  if (slug === DEMO_SLUG) return DEMO_CATALOG;
+  if (slug === DEMO_SLUG) return isDemoEnabled() ? DEMO_CATALOG : null;
 
   const store = getStore();
   if (!store) return null;
