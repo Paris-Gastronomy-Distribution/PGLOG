@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { ToastProvider } from "@/components/admin/ui";
 
 export const metadata: Metadata = {
@@ -6,12 +6,15 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+export const viewport: Viewport = {
+  themeColor: "#f6f8fb",
+  colorScheme: "light",
+};
+
 export default function AdminRootLayout({ children }: { children: React.ReactNode }) {
   return (
     <ToastProvider>
-      <div className="min-h-dvh bg-[radial-gradient(120%_70%_at_50%_0%,#1f1f23_0%,#141416_55%,#111113_100%)] text-white antialiased">
-        {children}
-      </div>
+      <div className="admin-root min-h-dvh bg-canvas text-navy antialiased">{children}</div>
     </ToastProvider>
   );
 }

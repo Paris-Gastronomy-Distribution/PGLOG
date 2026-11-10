@@ -10,9 +10,9 @@ import {
   type ButtonHTMLAttributes,
   type ReactNode,
 } from "react";
-import { buttonClass, inputClass, type ButtonVariant } from "./styles";
+import { buttonClass, cardClass, inputClass, type ButtonVariant } from "./styles";
 
-export { buttonClass, inputClass };
+export { buttonClass, cardClass, inputClass };
 
 /* ---------- Boutons ---------- */
 
@@ -36,7 +36,7 @@ export function IconButton({
       type="button"
       aria-label={label}
       title={label}
-      className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white/65 transition hover:bg-white/[0.09] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70 active:scale-95 ${className}`}
+      className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate transition hover:bg-brand-soft hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand active:scale-95 ${className}`}
       {...props}
     >
       {children}
@@ -70,16 +70,16 @@ export function Field({
 }) {
   return (
     <div className="space-y-2">
-      <label htmlFor={htmlFor} className="block text-[13px] font-medium text-white/75">
+      <label htmlFor={htmlFor} className="block text-[14px] font-semibold text-navy">
         {label}
       </label>
       {children}
       {error ? (
-        <p className="text-[13px] text-red-300" role="alert">
+        <p className="text-[13px] text-danger" role="alert">
           {error}
         </p>
       ) : hint ? (
-        <div className="text-[13px] text-white/45">{hint}</div>
+        <div className="text-[13px] text-slate">{hint}</div>
       ) : null}
     </div>
   );
@@ -103,10 +103,10 @@ export function Toggle({
   return (
     <div className={`flex items-start justify-between gap-4 ${disabled ? "opacity-50" : ""}`}>
       <div>
-        <label htmlFor={id} className="block text-[14px] font-medium text-white/90">
+        <label htmlFor={id} className="block text-[14px] font-semibold text-navy">
           {label}
         </label>
-        {description && <div className="mt-1 text-[13px] text-white/45">{description}</div>}
+        {description && <div className="mt-1 text-[13px] leading-relaxed text-slate">{description}</div>}
       </div>
       <button
         id={id}
@@ -115,11 +115,9 @@ export function Toggle({
         aria-checked={checked}
         disabled={disabled}
         onClick={() => onChange(!checked)}
-        className={`relative mt-0.5 inline-flex h-7 w-12 shrink-0 items-center rounded-full transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70 ${checked ? "bg-white" : "bg-white/15"}`}
+        className={`relative mt-0.5 inline-flex h-6 w-11 shrink-0 items-center rounded-full transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${checked ? "bg-brand" : "bg-line"}`}
       >
-        <span
-          className={`inline-block h-5 w-5 rounded-full shadow transition-transform ${checked ? "translate-x-6 bg-[#111113]" : "translate-x-1 bg-white"}`}
-        />
+        <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${checked ? "translate-x-[22px]" : "translate-x-0.5"}`} />
       </button>
     </div>
   );
@@ -141,16 +139,16 @@ export function AccentPicker({ value, onChange, id }: { value: string; onChange:
             aria-checked={active}
             aria-label={c}
             onClick={() => onChange(c)}
-            className={`h-9 w-9 rounded-full border transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70 ${active ? "scale-110 border-white ring-2 ring-white/30" : "border-white/15 hover:scale-105"}`}
+            className={`h-8 w-8 rounded-full transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${active ? "ring-2 ring-brand ring-offset-2" : "hover:scale-110"}`}
             style={{ background: c }}
           />
         );
       })}
       <label
         htmlFor={id}
-        className="relative inline-flex h-9 cursor-pointer items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] pr-3 pl-1 text-[13px] text-white/70 hover:bg-white/[0.08]"
+        className="relative inline-flex h-8 cursor-pointer items-center gap-2 rounded-full border border-line bg-white pr-3 pl-1 text-[13px] font-medium text-slate hover:border-brand"
       >
-        <span className="h-7 w-7 rounded-full border border-white/20" style={{ background: value }} />
+        <span className="h-6 w-6 rounded-full border border-line" style={{ background: value }} />
         {value.toUpperCase()}
         <input
           id={id}
@@ -195,12 +193,12 @@ export function Dialog({
       onClick={(e) => {
         if (e.target === ref.current) onClose();
       }}
-      className={`m-auto w-[calc(100%-32px)] ${wide ? "max-w-xl" : "max-w-md"} rounded-3xl border border-white/10 bg-[#1b1b1e] p-0 text-white shadow-[0_30px_80px_rgba(0,0,0,0.6)] backdrop:bg-black/60 backdrop:backdrop-blur-sm`}
+      className={`m-auto w-[calc(100%-32px)] ${wide ? "max-w-xl" : "max-w-md"} rounded-2xl border border-line bg-white p-0 text-navy shadow-[0_24px_60px_rgba(11,53,88,0.18)] backdrop:bg-navy/40 backdrop:backdrop-blur-[2px]`}
       aria-label={title}
     >
       {open && (
         <div className="p-6 sm:p-7">
-          <h2 className="mb-5 text-lg font-semibold tracking-tight">{title}</h2>
+          <h2 className="mb-5 text-lg font-bold tracking-tight">{title}</h2>
           {children}
         </div>
       )}
@@ -228,17 +226,21 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={push}>
       {children}
-      <div className="pointer-events-none fixed inset-x-0 bottom-[max(20px,env(safe-area-inset-bottom))] z-50 flex flex-col items-center gap-2 px-4" aria-live="polite" role="status">
+      <div
+        className="pointer-events-none fixed inset-x-0 bottom-[max(20px,env(safe-area-inset-bottom))] z-50 flex flex-col items-center gap-2 px-4"
+        aria-live="polite"
+        role="status"
+      >
         {items.map((t) => (
           <div
             key={t.id}
-            className={`flex items-center gap-2 rounded-full border px-4 py-2.5 text-sm font-medium shadow-[0_12px_30px_rgba(0,0,0,0.45)] backdrop-blur ${t.tone === "ok" ? "border-white/10 bg-[#232327]/95 text-white" : "border-red-400/30 bg-red-950/90 text-red-100"}`}
+            className={`flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium shadow-[0_10px_30px_rgba(11,53,88,0.25)] ${t.tone === "ok" ? "bg-navy text-white" : "bg-danger text-white"}`}
           >
-            {t.tone === "ok" ? (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-emerald-300" aria-hidden="true">
+            {t.tone === "ok" && (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-[#7ee2a8]" aria-hidden="true">
                 <path d="M20 6 9 17l-5-5" />
               </svg>
-            ) : null}
+            )}
             {t.text}
           </div>
         ))}

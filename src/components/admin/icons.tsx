@@ -81,6 +81,12 @@ export const MailIcon = (p: SVGProps<SVGSVGElement>) => (
     <path d="m22 7-10 6L2 7" />
   </I>
 );
+export const SearchIcon = (p: SVGProps<SVGSVGElement>) => (
+  <I {...p}>
+    <circle cx="11" cy="11" r="7" />
+    <path d="m20 20-3.5-3.5" />
+  </I>
+);
 export const FileIcon = (p: SVGProps<SVGSVGElement>) => (
   <I {...p}>
     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />

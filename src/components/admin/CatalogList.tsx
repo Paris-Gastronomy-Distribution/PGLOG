@@ -2,110 +2,134 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { deleteCatalogAction, updateCatalogAction } from "@/app/admin/actions";
 import type { AdminCatalog } from "@/lib/catalogs";
-import { BookIcon, ExternalIcon, LinkIcon, PencilIcon, PlusIcon, TrashIcon } from "./icons";
-import { AccentPicker, Button, buttonClass, copyToClipboard, Dialog, Field, IconButton, inputClass, Spinner, Toggle, useToast } from "./ui";
+import { BookIcon, ExternalIcon, LinkIcon, PencilIcon, PlusIcon, SearchIcon, TrashIcon } from "./icons";
+import { AccentPicker, Button, buttonClass, cardClass, copyToClipboard, Dialog, Field, IconButton, inputClass, Spinner, Toggle, useToast } from "./ui";
 
 const dateFmt = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short", year: "numeric" });
 
 export function CatalogList({ catalogs }: { catalogs: AdminCatalog[] }) {
   const [editing, setEditing] = useState<AdminCatalog | null>(null);
   const [deleting, setDeleting] = useState<AdminCatalog | null>(null);
+  const [query, setQuery] = useState("");
   const toast = useToast();
 
-  if (catalogs.length === 0) {
-    return (
-      <div className="flex flex-col items-center rounded-3xl border-2 border-dashed border-white/10 px-6 py-20 text-center">
-        <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/[0.06] text-white/70">
-          <BookIcon width={28} height={28} />
-        </span>
-        <h2 className="mt-6 text-lg font-semibold">Aucun catalogue pour l&apos;instant</h2>
-        <p className="mt-2 max-w-sm text-[15px] text-white/50">Importez un PDF exporté depuis Canva : vous obtiendrez un lien à envoyer à vos clients.</p>
-        <Link href="/admin/new" className={`${buttonClass("primary", "lg")} mt-8`}>
-          <PlusIcon width={18} height={18} />
-          Créer mon premier catalogue
-        </Link>
-      </div>
-    );
-  }
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return q ? catalogs.filter((c) => c.title.toLowerCase().includes(q) || c.slug.includes(q)) : catalogs;
+  }, [catalogs, query]);
 
   return (
-    <>
-      <ul className="grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {catalogs.map((c) => (
-          <li key={c.id} className="group flex flex-col">
-            <a
-              href={c.publicUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="relative flex aspect-[4/5] items-center justify-center overflow-hidden rounded-2xl bg-white/[0.035] p-6 transition hover:bg-white/[0.06] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70"
-              aria-label={`Ouvrir ${c.title}`}
-            >
-              {c.coverUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={c.coverUrl}
-                  alt=""
-                  loading="lazy"
-                  className="max-h-full max-w-full rounded-[3px] shadow-[0_18px_40px_rgba(0,0,0,0.55)] transition duration-300 group-hover:-translate-y-1"
-                  style={{ aspectRatio: c.coverRatio }}
-                />
-              ) : (
-                <BookIcon width={32} height={32} className="text-white/30" />
-              )}
-              <span className="absolute top-3 right-3 rounded-full bg-black/55 px-2.5 py-1 text-[11px] font-medium text-white/80 backdrop-blur">
-                {c.pageCount} p.
-              </span>
-            </a>
+    <section>
+      {/* En-tête de section */}
+      <div className="flex flex-col gap-4 border-b border-line pb-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <h2 className="text-[20px] font-bold text-navy">Mes catalogues</h2>
+          <span className="rounded-full bg-brand-soft px-2.5 py-0.5 text-[13px] font-semibold text-brand">{catalogs.length}</span>
+        </div>
+        <div className="flex items-center gap-3">
+          {catalogs.length > 0 && (
+            <label className="relative block w-full sm:w-64">
+              <span className="sr-only">Rechercher un catalogue</span>
+              <SearchIcon width={16} height={16} className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-mist" />
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Rechercher…"
+                className="h-10 w-full rounded-full border border-line bg-white pr-4 pl-10 text-[14px] text-navy outline-none placeholder:text-mist hover:border-mist focus:border-brand focus:ring-4 focus:ring-brand/15"
+              />
+            </label>
+          )}
+          <Link href="/admin/new" className={buttonClass("primary")}>
+            <PlusIcon width={18} height={18} />
+            <span>Nouveau</span>
+          </Link>
+        </div>
+      </div>
 
-            <div className="mt-4 flex items-start gap-2">
-              <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full border border-white/20" style={{ background: c.accentColor }} aria-hidden="true" />
-              <div className="min-w-0 flex-1">
-                <h3 className="line-clamp-2 text-[15px] leading-snug font-medium text-white" title={c.title}>
-                  {c.title}
-                </h3>
-                <p className="mt-1 truncate text-[13px] text-white/45">
-                  {dateFmt.format(new Date(c.createdAt))} · /c/{c.slug}
-                </p>
-              </div>
-            </div>
+      {catalogs.length === 0 ? (
+        <div className={`${cardClass} mt-8 flex flex-col items-center px-6 py-16 text-center`}>
+          <span className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-soft text-brand">
+            <BookIcon width={28} height={28} />
+          </span>
+          <h3 className="mt-5 text-[18px] font-bold text-navy">Aucun catalogue pour l&apos;instant</h3>
+          <p className="mt-2 max-w-sm text-[15px] text-slate">Importez un PDF exporté depuis Canva : vous obtiendrez un lien à envoyer à vos clients.</p>
+          <Link href="/admin/new" className={`${buttonClass("primary", "lg")} mt-7`}>
+            <PlusIcon width={18} height={18} />
+            Créer mon premier catalogue
+          </Link>
+        </div>
+      ) : visible.length === 0 ? (
+        <p className="mt-10 text-center text-[15px] text-slate">Aucun catalogue ne correspond à « {query} ».</p>
+      ) : (
+        <ul className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {visible.map((c) => (
+            <li key={c.id} className={`${cardClass} group flex flex-col overflow-hidden transition hover:shadow-[0_8px_24px_rgba(11,53,88,0.12)]`}>
+              <div className="h-1.5 shrink-0" style={{ background: c.accentColor }} aria-hidden="true" />
 
-            <div className="mt-3 flex items-center gap-1">
-              <Button
-                size="sm"
-                variant="secondary"
-                className="mr-auto"
-                onClick={async () => toast((await copyToClipboard(c.publicUrl)) ? "Lien copié" : "Copie impossible", "ok")}
-              >
-                <LinkIcon width={15} height={15} />
-                Copier le lien
-              </Button>
               <a
                 href={c.publicUrl}
                 target="_blank"
                 rel="noreferrer"
-                aria-label="Ouvrir le catalogue"
-                title="Ouvrir le catalogue"
-                className="inline-flex h-9 w-9 items-center justify-center rounded-full text-white/65 transition hover:bg-white/[0.09] hover:text-white"
+                aria-label={`Ouvrir ${c.title}`}
+                className="flex h-52 items-center justify-center bg-canvas p-5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand"
               >
-                <ExternalIcon width={17} height={17} />
+                {c.coverUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={c.coverUrl}
+                    alt=""
+                    loading="lazy"
+                    className="max-h-full max-w-full rounded-[3px] bg-white shadow-[0_8px_22px_rgba(11,53,88,0.2)] transition duration-300 group-hover:-translate-y-0.5"
+                    style={{ aspectRatio: c.coverRatio }}
+                  />
+                ) : (
+                  <BookIcon width={32} height={32} className="text-mist" />
+                )}
               </a>
-              <IconButton label="Renommer / modifier" onClick={() => setEditing(c)}>
-                <PencilIcon width={17} height={17} />
-              </IconButton>
-              <IconButton label="Supprimer" onClick={() => setDeleting(c)} className="hover:!bg-red-500/15 hover:!text-red-300">
-                <TrashIcon width={17} height={17} />
-              </IconButton>
-            </div>
-          </li>
-        ))}
-      </ul>
+
+              <div className="flex flex-1 flex-col px-5 pt-4 pb-3">
+                <h3 className="line-clamp-2 text-[16px] leading-snug font-bold text-navy" title={c.title}>
+                  {c.title}
+                </h3>
+                <p className="mt-1 text-[13px] text-slate">
+                  {c.pageCount} pages · {dateFmt.format(new Date(c.createdAt))}
+                </p>
+                <a href={c.publicUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex w-fit items-center gap-1 text-[13px] font-semibold text-brand hover:underline">
+                  Voir le catalogue
+                  <ExternalIcon width={13} height={13} />
+                </a>
+              </div>
+
+              <div className="flex items-center justify-between border-t border-line-soft px-3 py-2">
+                <button
+                  type="button"
+                  onClick={async () => toast((await copyToClipboard(c.publicUrl)) ? "Lien copié" : "Copie impossible", "ok")}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-[14px] font-semibold text-brand transition hover:bg-brand-soft"
+                >
+                  <LinkIcon width={16} height={16} />
+                  Copier le lien
+                </button>
+                <div className="flex items-center">
+                  <IconButton label="Renommer / modifier" onClick={() => setEditing(c)}>
+                    <PencilIcon width={16} height={16} />
+                  </IconButton>
+                  <IconButton label="Supprimer" onClick={() => setDeleting(c)} className="hover:!bg-danger/10 hover:!text-danger">
+                    <TrashIcon width={16} height={16} />
+                  </IconButton>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
 
       <EditDialog key={editing?.id ?? "none"} catalog={editing} onClose={() => setEditing(null)} />
       <DeleteDialog catalog={deleting} onClose={() => setDeleting(null)} />
-    </>
+    </section>
   );
 }
 
@@ -146,12 +170,18 @@ function EditDialog({ catalog, onClose }: { catalog: AdminCatalog | null; onClos
             <input id="edit-title" className={inputClass} value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)} autoFocus />
           </Field>
           <Field label="Description" htmlFor="edit-description">
-            <textarea id="edit-description" className={`${inputClass} min-h-[80px] resize-y`} value={description} maxLength={1000} onChange={(e) => setDescription(e.target.value)} />
+            <textarea
+              id="edit-description"
+              className={`${inputClass} min-h-[80px] resize-y`}
+              value={description}
+              maxLength={1000}
+              onChange={(e) => setDescription(e.target.value)}
+            />
           </Field>
           <Field label="Couleur des boutons du lecteur" htmlFor="edit-accent">
             <AccentPicker id="edit-accent" value={accent} onChange={setAccent} />
           </Field>
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+          <div className="rounded-xl border border-line bg-canvas p-4">
             <Toggle
               id="edit-download"
               checked={allowDownload && catalog.hasPdf}
@@ -165,13 +195,13 @@ function EditDialog({ catalog, onClose }: { catalog: AdminCatalog | null; onClos
               }
             />
           </div>
-          <p className="text-[13px] text-white/40">Le lien ne change pas : les clients qui l&apos;ont déjà reçu voient la nouvelle version.</p>
+          <p className="text-[13px] text-slate">Le lien ne change pas : les clients qui l&apos;ont déjà reçu voient la nouvelle version.</p>
           {error && (
-            <p className="text-[13px] text-red-300" role="alert">
+            <p className="text-[13px] text-danger" role="alert">
               {error}
             </p>
           )}
-          <div className="flex justify-end gap-2 pt-1">
+          <div className="flex justify-end gap-2 border-t border-line-soft pt-5">
             <Button variant="ghost" onClick={onClose}>
               Annuler
             </Button>
@@ -216,16 +246,16 @@ function DeleteDialog({ catalog, onClose }: { catalog: AdminCatalog | null; onCl
     >
       {catalog && (
         <div className="space-y-5">
-          <p className="text-[15px] text-white/70">
-            « <span className="text-white">{catalog.title}</span> » et toutes ses pages seront effacés. Le lien <span className="font-mono text-[13px] text-white/90">/c/{catalog.slug}</span> ne
-            fonctionnera plus. Cette action est définitive.
+          <p className="text-[15px] leading-relaxed text-slate">
+            « <span className="font-semibold text-navy">{catalog.title}</span> » et toutes ses pages seront effacés. Le lien{" "}
+            <span className="rounded bg-canvas px-1.5 py-0.5 text-[13px] font-medium text-navy">/c/{catalog.slug}</span> ne fonctionnera plus. Cette action est définitive.
           </p>
           {error && (
-            <p className="text-[13px] text-red-300" role="alert">
+            <p className="text-[13px] text-danger" role="alert">
               {error}
             </p>
           )}
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-end gap-2 border-t border-line-soft pt-5">
             <Button variant="ghost" onClick={onClose}>
               Annuler
             </Button>

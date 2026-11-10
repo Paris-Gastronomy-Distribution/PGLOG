@@ -49,14 +49,14 @@ export function PdfDropzone({ loaded, loading, error, disabled, onFile, onClear 
 
   if (loaded) {
     return (
-      <div className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+      <div className="flex items-center gap-5 rounded-xl border border-line bg-canvas p-4">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={loaded.thumbnail} alt="" className="h-28 w-auto rounded-md shadow-[0_8px_24px_rgba(0,0,0,0.45)]" />
+        <img src={loaded.thumbnail} alt="" className="h-32 w-auto rounded-md bg-white shadow-[0_6px_18px_rgba(11,53,88,0.18)]" />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[15px] font-medium text-white" title={loaded.name}>
+          <p className="truncate text-[15px] font-semibold text-navy" title={loaded.name}>
             {loaded.name}
           </p>
-          <p className="mt-1 text-[13px] text-white/50">
+          <p className="mt-1 text-[13px] text-slate">
             {loaded.pages} page{loaded.pages > 1 ? "s" : ""} · {loaded.size}
           </p>
           <button
@@ -66,7 +66,7 @@ export function PdfDropzone({ loaded, loading, error, disabled, onFile, onClear 
               pick();
             }}
             disabled={disabled}
-            className="mt-3 text-[13px] font-medium text-white/70 underline-offset-4 hover:text-white hover:underline disabled:opacity-40"
+            className="mt-3 text-[13px] font-semibold text-brand hover:underline disabled:opacity-40"
           >
             Changer de fichier
           </button>
@@ -88,24 +88,24 @@ export function PdfDropzone({ loaded, loading, error, disabled, onFile, onClear 
         }}
         onDragLeave={() => setOver(false)}
         onDrop={onDrop}
-        className={`flex w-full flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed px-6 py-12 text-center transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70 ${
-          over ? "border-white/60 bg-white/[0.08]" : "border-white/15 bg-white/[0.025] hover:border-white/30 hover:bg-white/[0.05]"
+        className={`flex w-full flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-6 py-12 text-center transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${
+          over ? "border-brand bg-brand-soft" : "border-line bg-canvas hover:border-brand hover:bg-brand-soft/50"
         }`}
       >
-        <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/[0.07] text-white/80">
+        <span className="flex h-14 w-14 items-center justify-center rounded-full bg-brand-soft text-brand">
           {loading ? <Spinner className="h-6 w-6" /> : over ? <FileIcon width={26} height={26} /> : <UploadIcon width={26} height={26} />}
         </span>
-        <span className="text-[15px] font-medium text-white">
+        <span className="text-[15px] font-semibold text-navy">
           {loading ? "Lecture du PDF…" : over ? "Déposez le PDF ici" : "Glissez votre PDF Canva ici"}
         </span>
         {!loading && (
-          <span className="text-[13px] text-white/45">
-            ou <span className="text-white/80 underline underline-offset-4">choisissez un fichier</span> · 50 Mo maximum
+          <span className="text-[13px] text-slate">
+            ou <span className="font-semibold text-brand">choisissez un fichier</span> · 50 Mo maximum
           </span>
         )}
       </button>
       {error && (
-        <p className="mt-3 rounded-xl border border-red-400/25 bg-red-500/10 px-4 py-3 text-[13px] text-red-200" role="alert">
+        <p className="mt-3 rounded-lg border border-danger/25 bg-danger/5 px-4 py-3 text-[13px] text-danger" role="alert">
           {error}
         </p>
       )}

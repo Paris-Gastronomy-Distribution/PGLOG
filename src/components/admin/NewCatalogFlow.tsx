@@ -8,7 +8,7 @@ import { sanitizeSlugInput, slugify, slugIssue, titleFromFilename } from "@/lib/
 import { ArrowLeftIcon, CheckIcon, ExternalIcon, LinkIcon, MailIcon, PlusIcon, WhatsAppIcon } from "./icons";
 import { PdfDropzone, type LoadedPdf } from "./PdfDropzone";
 import { formatBytes, openPdf, publishCatalog, PublishError, renderThumbnail, type PublishProgress } from "./pipeline";
-import { AccentPicker, Button, buttonClass, copyToClipboard, Field, inputClass, Spinner, Toggle, useToast } from "./ui";
+import { AccentPicker, Button, buttonClass, cardClass, copyToClipboard, Field, inputClass, Spinner, Toggle, useToast } from "./ui";
 
 type SlugCheck = { slug: string; available: boolean | null; error?: string };
 
@@ -216,118 +216,131 @@ export function NewCatalogFlow({ siteHost, isLocal }: { siteHost: string; isLoca
   }
 
   return (
-    <form onSubmit={onSubmit} className="mx-auto w-full max-w-5xl">
-      <Link href="/admin" className="inline-flex items-center gap-2 text-[13px] font-medium text-white/55 transition hover:text-white">
+    <form onSubmit={onSubmit} className="mx-auto w-full max-w-6xl">
+      <Link href="/admin" className="inline-flex items-center gap-1.5 text-[14px] font-semibold text-brand hover:underline">
         <ArrowLeftIcon width={16} height={16} />
-        Catalogues
+        Retour
       </Link>
-      <h1 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">Nouveau catalogue</h1>
-      <p className="mt-2 text-[15px] text-white/50">Déposez le PDF exporté depuis Canva, donnez-lui un nom, et récupérez un lien prêt à envoyer.</p>
+      <h1 className="mt-4 text-[28px] font-bold tracking-tight text-navy">Nouveau catalogue</h1>
+      <p className="mt-1.5 text-[15px] text-slate">Déposez le PDF exporté depuis Canva, donnez-lui un nom, et récupérez un lien prêt à envoyer.</p>
 
-      <div className="mt-8 grid gap-8 lg:grid-cols-2 lg:gap-12">
+      <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_1.15fr]">
         {/* PDF */}
-        <section className="space-y-3 lg:sticky lg:top-24 lg:self-start">
-          <h2 className="text-[13px] font-semibold tracking-[0.14em] text-white/40 uppercase">1 · Le PDF</h2>
-          <PdfDropzone loaded={loaded} loading={fileLoading} error={fileError} onFile={(f) => void handleFile(f)} onClear={clearFile} />
-          <p className="text-[12px] leading-relaxed text-white/35">
+        <section className={`${cardClass} p-6 lg:sticky lg:top-24 lg:self-start`}>
+          <StepTitle n={1} title="Le PDF" />
+          <div className="mt-5">
+            <PdfDropzone loaded={loaded} loading={fileLoading} error={fileError} onFile={(f) => void handleFile(f)} onClear={clearFile} />
+          </div>
+          <p className="mt-4 text-[13px] leading-relaxed text-slate">
             Le PDF est converti en images directement dans ce navigateur : rien n&apos;est envoyé avant que vous cliquiez sur « Publier ».
           </p>
         </section>
 
         {/* Infos */}
-        <section className="space-y-6">
-          <h2 className="text-[13px] font-semibold tracking-[0.14em] text-white/40 uppercase">2 · Les informations</h2>
-
-          <Field label="Titre du catalogue" htmlFor="title" hint="Visible par vos clients et dans l'aperçu WhatsApp / LinkedIn.">
-            <input
-              id="title"
-              className={inputClass}
-              value={title}
-              maxLength={200}
-              placeholder="Ex. Catalogue Automne — Hiver 2026"
-              onChange={(e) => setTitle(e.target.value)}
-              autoComplete="off"
-            />
-          </Field>
-
-          <Field
-            label="Lien du catalogue"
-            htmlFor="slug"
-            hint={
-              <span className={slugStatus.tone === "ok" ? "text-emerald-300" : slugStatus.tone === "error" ? "text-red-300" : ""}>
-                {slugStatus.tone === "ok" && <CheckIcon width={14} height={14} className="mr-1 inline -translate-y-px" />}
-                {slugStatus.text}
-                {check?.slug === effectiveSlug && check.error && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCheck(null);
-                      setRecheck((n) => n + 1);
-                    }}
-                    className="ml-2 font-medium text-white underline underline-offset-4 hover:text-white/80"
-                  >
-                    Réessayer
-                  </button>
-                )}
-              </span>
-            }
-          >
-            <div className="flex items-stretch overflow-hidden rounded-xl border border-white/10 bg-white/[0.04] transition focus-within:border-white/30 focus-within:ring-4 focus-within:ring-white/[0.06]">
-              <span className="hidden items-center border-r border-white/10 bg-white/[0.03] px-3 text-[14px] whitespace-nowrap text-white/40 sm:flex">
-                {siteHost}/c/
-              </span>
+        <section className={`${cardClass} p-6`}>
+          <StepTitle n={2} title="Les informations" />
+          <div className="mt-6 space-y-6">
+            <Field label="Titre du catalogue" htmlFor="title" hint="Visible par vos clients et dans l'aperçu WhatsApp / LinkedIn.">
               <input
-                id="slug"
-                className="min-w-0 flex-1 bg-transparent px-4 py-3 text-[15px] text-white outline-none placeholder:text-white/30"
-                value={effectiveSlug}
-                placeholder="mon-catalogue"
-                onChange={(e) => {
-                  setSlugTouched(true);
-                  setSlug(sanitizeSlugInput(e.target.value));
-                }}
-                onBlur={() => slugTouched && setSlug((s) => s.replace(/-+$/g, ""))}
+                id="title"
+                className={inputClass}
+                value={title}
+                maxLength={200}
+                placeholder="Ex. Catalogue Automne — Hiver 2026"
+                onChange={(e) => setTitle(e.target.value)}
                 autoComplete="off"
-                spellCheck={false}
+              />
+            </Field>
+
+            <Field
+              label="Lien du catalogue"
+              htmlFor="slug"
+              hint={
+                <span className={slugStatus.tone === "ok" ? "font-medium text-success" : slugStatus.tone === "error" ? "text-danger" : ""}>
+                  {slugStatus.tone === "ok" && <CheckIcon width={14} height={14} className="mr-1 inline -translate-y-px" />}
+                  {slugStatus.text}
+                  {check?.slug === effectiveSlug && check.error && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCheck(null);
+                        setRecheck((n) => n + 1);
+                      }}
+                      className="ml-2 font-semibold text-brand hover:underline"
+                    >
+                      Réessayer
+                    </button>
+                  )}
+                </span>
+              }
+            >
+              <div className="flex items-stretch overflow-hidden rounded-lg border border-line bg-white transition hover:border-mist focus-within:border-brand focus-within:ring-4 focus-within:ring-brand/15">
+                <span className="hidden items-center border-r border-line bg-canvas px-3 text-[14px] whitespace-nowrap text-slate sm:flex">{siteHost}/c/</span>
+                <input
+                  id="slug"
+                  className="min-w-0 flex-1 bg-transparent px-4 py-3 text-[15px] text-navy outline-none placeholder:text-mist"
+                  value={effectiveSlug}
+                  placeholder="mon-catalogue"
+                  onChange={(e) => {
+                    setSlugTouched(true);
+                    setSlug(sanitizeSlugInput(e.target.value));
+                  }}
+                  onBlur={() => slugTouched && setSlug((s) => s.replace(/-+$/g, ""))}
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+              </div>
+            </Field>
+
+            <Field label="Description (facultatif)" htmlFor="description" hint="Une phrase qui s'affiche sous le titre dans l'aperçu du lien.">
+              <textarea
+                id="description"
+                className={`${inputClass} min-h-[88px] resize-y`}
+                value={description}
+                maxLength={1000}
+                placeholder="Ex. Notre sélection de la saison, prix professionnels HT."
+                onChange={(e) => setDescription(e.target.value)}
+              />
+            </Field>
+
+            <Field label="Couleur des boutons du lecteur" htmlFor="accent">
+              <AccentPicker id="accent" value={accent} onChange={setAccent} />
+            </Field>
+
+            <div className="rounded-xl border border-line bg-canvas p-4">
+              <Toggle
+                id="download"
+                checked={allowDownload}
+                onChange={setAllowDownload}
+                label="Autoriser le téléchargement du PDF"
+                description="Ajoute un bouton « Télécharger » dans le lecteur. Le PDF original est alors conservé en ligne."
               />
             </div>
-          </Field>
-
-          <Field label="Description (facultatif)" htmlFor="description" hint="Une phrase qui s'affiche sous le titre dans l'aperçu du lien.">
-            <textarea
-              id="description"
-              className={`${inputClass} min-h-[88px] resize-y`}
-              value={description}
-              maxLength={1000}
-              placeholder="Ex. Notre sélection de la saison, prix professionnels HT."
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </Field>
-
-          <Field label="Couleur des boutons du lecteur" htmlFor="accent">
-            <AccentPicker id="accent" value={accent} onChange={setAccent} />
-          </Field>
-
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-            <Toggle
-              id="download"
-              checked={allowDownload}
-              onChange={setAllowDownload}
-              label="Autoriser le téléchargement du PDF"
-              description="Ajoute un bouton « Télécharger » dans le lecteur. Le PDF original est alors conservé en ligne."
-            />
           </div>
 
-          <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center">
-            <Button type="submit" variant="primary" size="lg" disabled={!canPublish}>
-              Publier le catalogue
-            </Button>
-            {!canPublish && blockers.length > 0 && !fileLoading && (
-              <p className="text-[13px] text-white/40">Il manque {blockers.join(", ")}.</p>
-            )}
+          <div className="mt-8 flex flex-col-reverse gap-3 border-t border-line-soft pt-6 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-[13px] text-slate">{!canPublish && blockers.length > 0 && !fileLoading ? `Il manque ${blockers.join(", ")}.` : " "}</p>
+            <div className="flex items-center gap-2">
+              <Link href="/admin" className={buttonClass("ghost")}>
+                Annuler
+              </Link>
+              <Button type="submit" variant="primary" disabled={!canPublish}>
+                Publier le catalogue
+              </Button>
+            </div>
           </div>
         </section>
       </div>
     </form>
+  );
+}
+
+function StepTitle({ n, title }: { n: number; title: string }) {
+  return (
+    <h2 className="flex items-center gap-3 text-[17px] font-bold text-navy">
+      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-soft text-[13px] font-bold text-brand">{n}</span>
+      {title}
+    </h2>
   );
 }
 
@@ -375,27 +388,24 @@ function PublishingView({
   ];
 
   return (
-    <div className="mx-auto flex w-full max-w-lg flex-col items-center py-6 text-center" aria-live="polite">
-      <div className="relative">
-        <div className="absolute inset-x-6 -bottom-5 h-8 rounded-[50%] bg-black/60 blur-xl" aria-hidden="true" />
-        {progress.coverPreview ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={progress.coverPreview} alt="" className="relative h-56 w-auto rounded-md shadow-[0_20px_50px_rgba(0,0,0,0.5)]" />
-        ) : (
-          <div className="relative h-56 w-40 animate-pulse rounded-md bg-gradient-to-br from-white/15 to-white/5" />
-        )}
-      </div>
+    <div className={`${cardClass} mx-auto flex w-full max-w-lg flex-col items-center px-6 py-10 text-center sm:px-10`} aria-live="polite">
+      {progress.coverPreview ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={progress.coverPreview} alt="" className="h-48 w-auto rounded-md bg-white shadow-[0_14px_36px_rgba(11,53,88,0.22)]" />
+      ) : (
+        <div className="h-48 w-34 animate-pulse rounded-md bg-line-soft" />
+      )}
 
-      <h1 className="mt-10 text-xl font-semibold tracking-tight sm:text-2xl">{error ? "La publication s'est interrompue" : "Publication en cours…"}</h1>
-      <p className="mt-2 max-w-full truncate text-[15px] text-white/50">« {title.trim()} »</p>
+      <h1 className="mt-8 text-[22px] font-bold tracking-tight text-navy">{error ? "La publication s'est interrompue" : "Publication en cours…"}</h1>
+      <p className="mt-1.5 max-w-full truncate text-[15px] text-slate">« {title.trim()} »</p>
 
       {error ? (
-        <div className="mt-8 w-full rounded-2xl border border-red-400/25 bg-red-500/10 p-5 text-left">
-          <p className="text-[14px] text-red-100" role="alert">
+        <div className="mt-8 w-full rounded-xl border border-danger/25 bg-danger/5 p-5 text-left">
+          <p className="text-[14px] font-medium text-danger" role="alert">
             {error}
           </p>
-          <p className="mt-2 text-[13px] text-red-100/60">Les fichiers déjà envoyés ont été nettoyés : vous pouvez relancer sans risque.</p>
-          <div className="mt-4 flex flex-wrap gap-3">
+          <p className="mt-2 text-[13px] text-slate">Les fichiers déjà envoyés ont été nettoyés : vous pouvez relancer sans risque.</p>
+          <div className="mt-4 flex flex-wrap gap-2">
             <Button variant="primary" onClick={onRetry}>
               Réessayer
             </Button>
@@ -408,42 +418,42 @@ function PublishingView({
         <>
           <div className="mt-8 w-full">
             <div className="flex items-baseline justify-between text-[13px]">
-              <span className="font-medium text-white/80">
+              <span className="font-semibold text-navy">
                 {stage === "pages"
                   ? rendered < total
                     ? `Conversion de la page ${rendered + 1}/${total}`
                     : "Envoi des dernières pages…"
                   : steps.find((s) => s.state === "active")?.label}
               </span>
-              <span className="tabular-nums text-white/50">{percent} %</span>
+              <span className="font-semibold tabular-nums text-brand">{percent} %</span>
             </div>
             <div
-              className="mt-2 h-2 w-full overflow-hidden rounded-full bg-white/10"
+              className="mt-2 h-2 w-full overflow-hidden rounded-full bg-brand-soft"
               role="progressbar"
               aria-valuemin={0}
               aria-valuemax={100}
               aria-valuenow={percent}
               aria-label="Progression de la publication"
             >
-              <div className="h-full rounded-full bg-white transition-[width] duration-300 ease-out" style={{ width: `${percent}%` }} />
+              <div className="h-full rounded-full bg-brand transition-[width] duration-300 ease-out" style={{ width: `${percent}%` }} />
             </div>
           </div>
 
-          <ol className="mt-8 w-full space-y-3 text-left">
+          <ol className="mt-8 w-full space-y-3.5 text-left">
             {steps.map((s) => (
               <li key={s.label} className="flex items-center gap-3">
                 <span
-                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${s.state === "done" ? "bg-emerald-400/90 text-[#0c1a12]" : s.state === "active" ? "bg-white/10 text-white" : "border border-white/15"}`}
+                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${s.state === "done" ? "bg-brand text-white" : s.state === "active" ? "bg-brand-soft text-brand" : "border-2 border-line"}`}
                 >
-                  {s.state === "done" ? <CheckIcon width={14} height={14} strokeWidth={3} /> : s.state === "active" ? <Spinner className="h-3.5 w-3.5" /> : null}
+                  {s.state === "done" ? <CheckIcon width={13} height={13} strokeWidth={3} /> : s.state === "active" ? <Spinner className="h-3.5 w-3.5" /> : null}
                 </span>
-                <span className={`text-[14px] ${s.state === "todo" ? "text-white/35" : "text-white/85"}`}>{s.label}</span>
-                {s.detail && s.state !== "todo" && <span className="ml-auto text-[13px] tabular-nums text-white/45">{s.detail}</span>}
+                <span className={`text-[14px] ${s.state === "todo" ? "text-mist" : "font-medium text-navy"}`}>{s.label}</span>
+                {s.detail && s.state !== "todo" && <span className="ml-auto text-[13px] tabular-nums text-slate">{s.detail}</span>}
               </li>
             ))}
           </ol>
 
-          <p className="mt-8 text-[13px] text-white/40">Gardez cet onglet ouvert jusqu&apos;à la fin : la conversion se fait dans votre navigateur.</p>
+          <p className="mt-8 text-[13px] text-slate">Gardez cet onglet ouvert jusqu&apos;à la fin : la conversion se fait dans votre navigateur.</p>
           <Button variant="ghost" size="sm" className="mt-3" onClick={onCancel}>
             Annuler
           </Button>
@@ -487,35 +497,35 @@ function SuccessView({
   const message = `${title} : ${url}`;
 
   return (
-    <div className="mx-auto flex w-full max-w-xl flex-col items-center py-6 text-center">
-      <span className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-400/90 text-[#0c1a12] shadow-[0_0_0_8px_rgba(52,211,153,0.12)]">
+    <div className={`${cardClass} mx-auto flex w-full max-w-xl flex-col items-center px-6 py-10 text-center sm:px-10`}>
+      <span className="flex h-14 w-14 items-center justify-center rounded-full bg-success text-white shadow-[0_0_0_8px_rgba(30,158,90,0.12)]">
         <CheckIcon width={28} height={28} strokeWidth={2.6} />
       </span>
-      <h1 className="mt-6 text-2xl font-semibold tracking-tight sm:text-3xl">{isLocal ? "Votre catalogue est prêt" : "Votre catalogue est en ligne"}</h1>
-      <p className="mt-2 text-[15px] text-white/50">
+      <h1 className="mt-6 text-[26px] font-bold tracking-tight text-navy">{isLocal ? "Votre catalogue est prêt" : "Votre catalogue est en ligne"}</h1>
+      <p className="mt-1.5 text-[15px] text-slate">
         {isLocal
           ? "Mode local : ce lien ne fonctionne que sur cet ordinateur. Une fois Supabase configuré, il sera accessible à vos clients."
           : "Envoyez ce lien à vos clients : il ouvre le catalogue feuilletable."}
       </p>
 
-      <div className="mt-8 flex w-full items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-left">
+      <div className="mt-8 flex w-full items-center gap-4 rounded-xl border border-line bg-canvas p-4 text-left">
         {cover && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={cover} alt="" className="h-20 w-auto rounded shadow-[0_8px_20px_rgba(0,0,0,0.45)]" />
+          <img src={cover} alt="" className="h-20 w-auto rounded bg-white shadow-[0_6px_16px_rgba(11,53,88,0.18)]" />
         )}
         <div className="min-w-0">
-          <p className="truncate text-[15px] font-medium">{title}</p>
-          <p className="text-[13px] text-white/45">{pages} pages</p>
+          <p className="truncate text-[15px] font-semibold text-navy">{title}</p>
+          <p className="text-[13px] text-slate">{pages} pages</p>
         </div>
       </div>
 
-      <div className="mt-4 flex w-full flex-col gap-2 rounded-2xl border border-white/15 bg-black/30 p-2 sm:flex-row sm:items-center">
+      <div className="mt-4 flex w-full flex-col gap-2 rounded-xl border border-line bg-white p-2 sm:flex-row sm:items-center">
         <input
           readOnly
           value={url}
           onFocus={(e) => e.currentTarget.select()}
           aria-label="Lien du catalogue"
-          className="min-w-0 flex-1 bg-transparent px-3 py-2 font-mono text-[14px] text-white/90 outline-none"
+          className="min-w-0 flex-1 bg-transparent px-3 py-2 text-[14px] font-medium text-navy outline-none"
         />
         <Button variant="primary" onClick={() => void copy()}>
           {copied ? <CheckIcon width={16} height={16} /> : <LinkIcon width={16} height={16} />}
@@ -523,7 +533,7 @@ function SuccessView({
         </Button>
       </div>
 
-      <div className="mt-4 grid w-full grid-cols-1 gap-2 sm:grid-cols-3">
+      <div className="mt-3 grid w-full grid-cols-1 gap-2 sm:grid-cols-3">
         <a href={url} target="_blank" rel="noreferrer" className={buttonClass("secondary")}>
           <ExternalIcon width={16} height={16} />
           Ouvrir
@@ -532,13 +542,16 @@ function SuccessView({
           <WhatsAppIcon width={16} height={16} />
           WhatsApp
         </a>
-        <a href={`mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(`Bonjour,\n\nVoici notre catalogue : ${url}\n\nBonne lecture !`)}`} className={buttonClass("secondary")}>
+        <a
+          href={`mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(`Bonjour,\n\nVoici notre catalogue : ${url}\n\nBonne lecture !`)}`}
+          className={buttonClass("secondary")}
+        >
           <MailIcon width={16} height={16} />
           E-mail
         </a>
       </div>
 
-      <div className="mt-10 flex flex-wrap justify-center gap-3">
+      <div className="mt-8 flex flex-wrap justify-center gap-2 border-t border-line-soft pt-6">
         <Button variant="ghost" onClick={onNew}>
           <PlusIcon width={16} height={16} />
           Créer un autre catalogue

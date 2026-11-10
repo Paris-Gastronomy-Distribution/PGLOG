@@ -3,6 +3,19 @@
 @theme {
   --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --color-ink: #141416;
+
+  /* Administration : palette claire et sobre (inspiration Calendly). */
+  --color-brand: #006bff;
+  --color-brand-hover: #0057d6;
+  --color-brand-soft: #ebf3ff;
+  --color-navy: #0b3558;
+  --color-slate: #476788;
+  --color-mist: #a6bbd1;
+  --color-line: #d4e0ed;
+  --color-line-soft: #e7edf6;
+  --color-canvas: #f6f8fb;
+  --color-success: #1e9e5a;
+  --color-danger: #d9343a;
 }
 
 html,
@@ -10,6 +23,13 @@ body {
   min-height: 100%;
   background: #141416;
   color: rgba(255, 255, 255, 0.92);
+}
+
+/* L'administration est claire (le lecteur client, lui, reste sombre). */
+html:has(.admin-root),
+body:has(.admin-root) {
+  background: var(--color-canvas);
+  color: var(--color-navy);
 }
 
 body {

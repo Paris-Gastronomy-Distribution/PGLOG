@@ -2,17 +2,17 @@
 
 import { useActionState, useState } from "react";
 import { loginAction, type LoginState } from "@/app/admin/actions";
-import { Button, inputClass, Spinner } from "./ui";
+import { Button, cardClass, inputClass, Spinner } from "./ui";
 
 export function LoginForm({ next }: { next: string }) {
   const [state, action, pending] = useActionState<LoginState, FormData>(loginAction, {});
   const [show, setShow] = useState(false);
 
   return (
-    <form action={action} className="space-y-4 rounded-3xl border border-white/10 bg-white/[0.03] p-6 shadow-[0_30px_60px_-20px_rgba(0,0,0,0.6)]">
+    <form action={action} className={`${cardClass} space-y-5 p-6 sm:p-7`}>
       <input type="hidden" name="next" value={next} />
       <div className="space-y-2">
-        <label htmlFor="password" className="block text-[13px] font-medium text-white/75">
+        <label htmlFor="password" className="sr-only">
           Mot de passe
         </label>
         <div className="relative">
@@ -23,6 +23,7 @@ export function LoginForm({ next }: { next: string }) {
             autoComplete="current-password"
             required
             autoFocus
+            placeholder="Mot de passe"
             className={`${inputClass} pr-24`}
             aria-invalid={Boolean(state.error)}
             aria-describedby={state.error ? "login-error" : undefined}
@@ -30,13 +31,13 @@ export function LoginForm({ next }: { next: string }) {
           <button
             type="button"
             onClick={() => setShow((s) => !s)}
-            className="absolute top-1/2 right-2 -translate-y-1/2 rounded-lg px-3 py-1.5 text-[12px] font-medium text-white/55 hover:bg-white/10 hover:text-white"
+            className="absolute top-1/2 right-2 -translate-y-1/2 rounded-md px-3 py-1.5 text-[13px] font-semibold text-brand hover:bg-brand-soft"
           >
             {show ? "Masquer" : "Afficher"}
           </button>
         </div>
         {state.error && (
-          <p id="login-error" className="text-[13px] text-red-300" role="alert">
+          <p id="login-error" className="text-[13px] text-danger" role="alert">
             {state.error}
           </p>
         )}
