@@ -67,7 +67,8 @@ export default function FlipbookViewer({ catalog }: { catalog: ViewerCatalog }) 
   const palette = useMemo(() => accentPalette(catalog.accentColor), [catalog.accentColor]);
 
   const touchMode = useCoarsePointer();
-  const layout = useStageLayout(stageRef, ratio);
+  const headerRef = useRef<HTMLElement>(null);
+  const layout = useStageLayout(stageRef, headerRef, ratio);
   const book = useFlipbook({ hostRef, pages: catalog.pages, layout, touchMode, title: catalog.title });
 
   /* ---------- Géométrie : partie visible, recentrage, ombre ---------- */
@@ -85,7 +86,8 @@ export default function FlipbookViewer({ catalog }: { catalog: ViewerCatalog }) 
   const getContentRect = useCallback(() => {
     if (!layout) return null;
     const w = shadowWidth;
-    return { x: (layout.stageW - w) / 2, y: (layout.stageH - layout.pageH) / 2, w, h: layout.pageH };
+    const top = layout.offsetTop;
+    return { x: (layout.stageW - w) / 2, y: top + (layout.stageH - top - layout.pageH) / 2, w, h: layout.pageH };
   }, [layout, shadowWidth]);
 
   const maxScale = layout ? Math.min(4, Math.max(2, 2000 / Math.max(1, layout.pageW))) : 3;
@@ -257,15 +259,7 @@ export default function FlipbookViewer({ catalog }: { catalog: ViewerCatalog }) 
 
   return (
     <div ref={rootRef} className="viewer" style={themeVars} data-touch={touchMode || undefined}>
-      <TopBar
-        title={catalog.title}
-        downloadUrl={catalog.downloadUrl}
-        fullscreenSupported={fsSupported}
-        isFullscreen={isFs}
-        onShare={share}
-        onToggleFullscreen={toggleFullscreen}
-      />
-
+      <div className="v-main">
       <main
         ref={stageRef}
         className="v-stage"
@@ -276,7 +270,7 @@ export default function FlipbookViewer({ catalog }: { catalog: ViewerCatalog }) 
         {!layout && <div className="v-placeholder" aria-hidden="true" />}
 
         {layout && (
-          <div ref={zoomRef} className="v-zoom">
+          <div ref={zoomRef} className="v-zoom" style={{ paddingTop: layout.offsetTop }}>
             <div className="v-shift" style={{ transform: shift ? `translate3d(${shift}px,0,0)` : undefined }}>
               <div className="v-book" style={{ width: bookW, height: layout.pageH }}>
                 <div className="v-book-shadow" style={{ left: shadowLeft, width: shadowWidth }} aria-hidden="true" />
@@ -311,6 +305,20 @@ export default function FlipbookViewer({ catalog }: { catalog: ViewerCatalog }) 
           {book.ready ? announce : "Chargement du catalogue"}
         </p>
       </main>
+
+      {/* Barre du haut posée sur la scène : elle flotte dans les marges du livre quand il y a la place. */}
+      <TopBar
+        ref={headerRef}
+        title={catalog.title}
+        downloadUrl={catalog.downloadUrl}
+        fullscreenSupported={fsSupported}
+        isFullscreen={isFs}
+        floating={Boolean(layout && layout.offsetTop === 0)}
+        titleMax={layout ? Math.max(120, Math.floor(layout.sideSpace - 40)) : undefined}
+        onShare={share}
+        onToggleFullscreen={toggleFullscreen}
+      />
+      </div>
 
       <BottomBar
         label={label}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
+import { useRef, useState, type CSSProperties, type KeyboardEvent, type Ref } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -19,17 +19,22 @@ interface TopBarProps {
   downloadUrl: string | null;
   fullscreenSupported: boolean;
   isFullscreen: boolean;
+  /** true : la barre flotte dans les marges latérales du livre. */
+  floating: boolean;
+  /** Largeur max du titre quand la barre flotte (place libre à gauche du livre). */
+  titleMax?: number;
   onShare: () => void;
   onToggleFullscreen: () => void;
+  ref?: Ref<HTMLElement>;
 }
 
-export function TopBar({ title, downloadUrl, fullscreenSupported, isFullscreen, onShare, onToggleFullscreen }: TopBarProps) {
+export function TopBar({ title, downloadUrl, fullscreenSupported, isFullscreen, floating, titleMax, onShare, onToggleFullscreen, ref }: TopBarProps) {
   return (
-    <header className="v-top">
-      <h1 className="v-title" title={title}>
+    <header ref={ref} className="v-top" data-floating={floating || undefined}>
+      <h1 className="v-title" title={title} style={floating && titleMax ? { maxWidth: titleMax } : undefined}>
         {title}
       </h1>
-      <div className="v-actions">
+      <div className="v-actions" data-actions>
         <button type="button" className="v-btn" onClick={onShare} aria-label="Partager le lien du catalogue">
           <ShareIcon />
           <span className="v-btn-label">Partager</span>

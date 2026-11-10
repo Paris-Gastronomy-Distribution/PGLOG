@@ -5,9 +5,20 @@ export interface BookLayout {
   /** Taille affichée d'une page, en px CSS (entiers). */
   pageW: number;
   pageH: number;
-  /** Taille de la scène (zone disponible pour le livre). */
+  /** Taille de la scène (zone disponible pour le livre, barre du haut comprise). */
   stageW: number;
   stageH: number;
+  /** Hauteur réservée en haut pour la barre de titre (0 si elle flotte dans les marges). */
+  offsetTop: number;
+  /** Largeur libre de chaque côté du livre (sert à limiter le titre flottant). */
+  sideSpace: number;
+}
+
+/** Encombrement de la barre du haut, mesuré dans la page. */
+export interface HeaderMetrics {
+  height: number;
+  /** Largeur minimale requise de chaque côté du livre pour la laisser flotter. */
+  sideNeed: number;
 }
 
 /** En dessous de cette largeur de viewport : page simple. */
@@ -22,36 +33,53 @@ export function chooseMode(viewportW: number, viewportH: number): BookMode {
   return viewportW >= DOUBLE_PAGE_MIN_WIDTH && viewportW >= viewportH ? "double" : "single";
 }
 
-export function stagePadding(viewportW: number): { x: number; y: number } {
-  return viewportW < 640 ? { x: 12, y: 14 } : { x: 40, y: 28 };
+/** Marges autour du livre : réduites au minimum pour qu'il occupe tout l'écran. */
+export function stagePadding(viewportW: number, viewportH: number): { x: number; y: number } {
+  if (viewportW < 640) return { x: 8, y: 10 };
+  if (viewportH < 500) return { x: 16, y: 8 };
+  return { x: 24, y: 16 };
 }
 
-/** Plus grande taille de page qui tient dans la scène, au bon ratio. */
+function fit(availW: number, availH: number, ratio: number, cols: number) {
+  let pageH = Math.max(40, availH);
+  let pageW = pageH * ratio;
+  if (pageW * cols > availW) {
+    pageW = Math.max(40, availW) / cols;
+    pageH = pageW / ratio;
+  }
+  return { pageW: Math.max(40, Math.floor(pageW)), pageH: Math.max(40, Math.floor(pageH)) };
+}
+
+/**
+ * Plus grande taille de page qui tient dans la scène, au bon ratio.
+ * La barre du haut (titre + boutons) flotte dans les marges latérales quand
+ * il y a la place (cas typique : double page sur ordinateur) ; sinon on lui
+ * réserve sa hauteur au-dessus du livre.
+ */
 export function computeLayout(
   stageW: number,
   stageH: number,
   ratio: number,
   mode: BookMode,
   pad: { x: number; y: number },
+  header: HeaderMetrics,
 ): BookLayout {
   const cols = mode === "double" ? 2 : 1;
-  const availW = Math.max(80, stageW - pad.x * 2);
-  const availH = Math.max(80, stageH - pad.y * 2);
+  const availW = stageW - pad.x * 2;
 
-  let pageH = availH;
-  let pageW = pageH * ratio;
-  if (pageW * cols > availW) {
-    pageW = availW / cols;
-    pageH = pageW / ratio;
+  // 1er essai : livre sur toute la hauteur, barre du haut flottante.
+  let size = fit(availW, stageH - pad.y * 2, ratio, cols);
+  let sideSpace = (stageW - size.pageW * cols) / 2;
+  let offsetTop = 0;
+
+  if (sideSpace < header.sideNeed) {
+    // Pas assez de place sur les côtés : la barre prend sa hauteur.
+    offsetTop = header.height;
+    size = fit(availW, stageH - offsetTop - pad.y * 2, ratio, cols);
+    sideSpace = (stageW - size.pageW * cols) / 2;
   }
 
-  return {
-    mode,
-    pageW: Math.max(40, Math.floor(pageW)),
-    pageH: Math.max(40, Math.floor(pageH)),
-    stageW,
-    stageH,
-  };
+  return { mode, ...size, stageW, stageH, offsetTop, sideSpace };
 }
 
 export type VisiblePart = "both" | "left" | "right";

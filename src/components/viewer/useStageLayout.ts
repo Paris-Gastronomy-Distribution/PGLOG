@@ -1,9 +1,13 @@
 "use client";
 
 import { useLayoutEffect, useState, type RefObject } from "react";
-import { chooseMode, computeLayout, stagePadding, type BookLayout } from "./layout";
+import { chooseMode, computeLayout, stagePadding, type BookLayout, type HeaderMetrics } from "./layout";
 
 const MODE_SWITCH_DELAY = 180;
+/** Largeur minimale gardée pour le titre quand il flotte à gauche du livre. */
+const TITLE_MIN = 140;
+/** Écart entre les éléments flottants et le bord du livre. */
+const SIDE_GAP = 28;
 
 function same(a: BookLayout | null, b: BookLayout): boolean {
   return (
@@ -11,9 +15,18 @@ function same(a: BookLayout | null, b: BookLayout): boolean {
     a.mode === b.mode &&
     a.pageW === b.pageW &&
     a.pageH === b.pageH &&
+    a.offsetTop === b.offsetTop &&
+    Math.round(a.sideSpace) === Math.round(b.sideSpace) &&
     Math.round(a.stageW) === Math.round(b.stageW) &&
     Math.round(a.stageH) === Math.round(b.stageH)
   );
+}
+
+function headerMetrics(header: HTMLElement | null): HeaderMetrics {
+  if (!header) return { height: 0, sideNeed: 0 };
+  const actions = header.querySelector<HTMLElement>("[data-actions]");
+  const actionsW = actions?.offsetWidth ?? 0;
+  return { height: header.offsetHeight, sideNeed: Math.max(actionsW, TITLE_MIN) + SIDE_GAP };
 }
 
 /**
@@ -22,7 +35,11 @@ function same(a: BookLayout | null, b: BookLayout): boolean {
  * - Changement de mode (simple ↔ double) : différé de 180 ms (ré-initialisation
  *   du moteur), en gardant entre-temps l'ancien mode à la nouvelle taille.
  */
-export function useStageLayout(stageRef: RefObject<HTMLElement | null>, ratio: number): BookLayout | null {
+export function useStageLayout(
+  stageRef: RefObject<HTMLElement | null>,
+  headerRef: RefObject<HTMLElement | null>,
+  ratio: number,
+): BookLayout | null {
   const [layout, setLayout] = useState<BookLayout | null>(null);
 
   useLayoutEffect(() => {
@@ -39,26 +56,27 @@ export function useStageLayout(stageRef: RefObject<HTMLElement | null>, ratio: n
       setLayout(next);
     };
 
+    const compute = (mode: BookLayout["mode"]) => {
+      const { width, height } = el.getBoundingClientRect();
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      return computeLayout(width, height, ratio, mode, stagePadding(vw, vh), headerMetrics(headerRef.current));
+    };
+
     const measure = () => {
       const { width, height } = el.getBoundingClientRect();
       if (width < 1 || height < 1) return;
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
-      const pad = stagePadding(vw);
-      const mode = chooseMode(vw, vh);
+      const mode = chooseMode(window.innerWidth, window.innerHeight);
 
       if (!current || current.mode === mode) {
         clearTimeout(modeTimer);
-        commit(computeLayout(width, height, ratio, mode, pad));
+        commit(compute(mode));
         return;
       }
       // Mode différent : on garde l'ancien mode, redimensionné, puis on bascule.
-      commit(computeLayout(width, height, ratio, current.mode, pad));
+      commit(compute(current.mode));
       clearTimeout(modeTimer);
-      modeTimer = setTimeout(() => {
-        const r = el.getBoundingClientRect();
-        commit(computeLayout(r.width, r.height, ratio, chooseMode(window.innerWidth, window.innerHeight), stagePadding(window.innerWidth)));
-      }, MODE_SWITCH_DELAY);
+      modeTimer = setTimeout(() => commit(compute(chooseMode(window.innerWidth, window.innerHeight))), MODE_SWITCH_DELAY);
     };
 
     measure();
@@ -67,6 +85,9 @@ export function useStageLayout(stageRef: RefObject<HTMLElement | null>, ratio: n
       raf = requestAnimationFrame(measure);
     });
     ro.observe(el);
+    // Les boutons de la barre du haut peuvent changer (plein écran détecté après coup…).
+    const actions = headerRef.current?.querySelector("[data-actions]");
+    if (actions) ro.observe(actions);
     window.addEventListener("orientationchange", measure);
 
     return () => {
@@ -75,7 +96,7 @@ export function useStageLayout(stageRef: RefObject<HTMLElement | null>, ratio: n
       clearTimeout(modeTimer);
       window.removeEventListener("orientationchange", measure);
     };
-  }, [stageRef, ratio]);
+  }, [stageRef, headerRef, ratio]);
 
   return layout;
 }

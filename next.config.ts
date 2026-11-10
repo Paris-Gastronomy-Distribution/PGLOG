@@ -14,10 +14,12 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        // L'administration ne peut pas être affichée dans une iframe (clickjacking).
+        // En production, l'administration ne peut pas être affichée dans une
+        // iframe (clickjacking). En développement on l'autorise pour pouvoir
+        // tester les écrans à différentes tailles.
         source: "/admin/:path*",
         headers: [
-          { key: "X-Frame-Options", value: "DENY" },
+          ...(process.env.NODE_ENV === "production" ? [{ key: "X-Frame-Options", value: "DENY" }] : []),
           { key: "Cache-Control", value: "no-store" },
         ],
       },

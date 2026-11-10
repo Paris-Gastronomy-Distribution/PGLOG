@@ -29,14 +29,32 @@
 
 /* ---------- Barre du haut ---------- */
 
+/* Zone de lecture (scène + barre du haut posée dessus). */
+.v-main {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Barre du haut : posée sur la scène. Quand il y a la place, elle flotte
+   dans les marges latérales du livre et celui-ci prend toute la hauteur. */
 .v-top {
-  flex: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
   display: flex;
+  pointer-events: none;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   height: calc(60px + env(safe-area-inset-top));
   padding: env(safe-area-inset-top) max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left));
+}
+
+.v-top > * {
+  pointer-events: auto;
 }
 
 .v-title {
@@ -154,9 +172,8 @@
 /* ---------- Scène et livre ---------- */
 
 .v-stage {
-  position: relative;
-  flex: 1 1 auto;
-  min-height: 0;
+  position: absolute;
+  inset: 0;
   overflow: hidden;
   outline: none;
 }
@@ -259,7 +276,7 @@
 
 .v-zoom-chip {
   position: absolute;
-  top: 12px;
+  bottom: 12px;
   right: max(12px, env(safe-area-inset-right));
   z-index: 6;
   background: rgba(20, 20, 22, 0.78);
@@ -382,7 +399,7 @@
   flex: none;
   display: flex;
   justify-content: center;
-  padding: 6px max(12px, env(safe-area-inset-right)) calc(14px + env(safe-area-inset-bottom))
+  padding: 4px max(12px, env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom))
     max(12px, env(safe-area-inset-left));
 }
 
@@ -646,6 +663,10 @@
 @media (max-height: 480px) {
   .v-top {
     height: calc(46px + env(safe-area-inset-top));
+  }
+
+  .v-btn-label {
+    display: none;
   }
 
   .v-bottom {
