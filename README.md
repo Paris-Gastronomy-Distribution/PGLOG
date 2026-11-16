@@ -217,7 +217,7 @@ Canva ─PDF─▶ /admin (navigateur)
 - **Images** : servies directement par Supabase (`<img>`), sans passer par l'optimiseur d'images de Vercel, ce qui évite ses quotas.
 - **PDF téléchargeable** : assemblé dans le navigateur de l'admin à partir des rendus des pages (JPEG, qualité ajustée page par page pour rester sous la limite de 50 Mo), format de page d'origine, affichage en doubles pages (`/PageLayout /TwoPageRight`).
 - **Désactivation** : colonne `is_active` ; un lien désactivé affiche une page sobre « Ce catalogue n'est plus en ligne ».
-- **Identité visuelle** : logo dans `public/brand/`, icône d'onglet (chapeau) dans `src/app/icon.svg` avec variante claire pour les navigateurs en thème sombre, `favicon.ico` et `apple-icon.png` pour les anciens clients et l'écran d'accueil iPhone.
+- **Identité visuelle** : logo dans `public/brand/`, icône d'onglet (chapeau, fichier d'origine) dans `src/app/icon.svg`, `favicon.ico` et `apple-icon.png` pour les anciens clients et l'écran d'accueil iPhone.
 - **Catalogue de démonstration** : `/c/demo` est servi depuis `public/demo/` (fichiers générés par `node scripts/generate-demo.mjs`). Visible tant que Supabase n'est pas configuré, puis masqué automatiquement (sauf `ENABLE_DEMO=true`).
 - **En-têtes HTTP** : pas d'en-tête `X-Powered-By`, `nosniff` partout, et l'administration refuse d'être affichée dans une iframe.
 - **Administration** : `/admin` est protégé par un cookie de session signé (HMAC, `httpOnly`, 30 jours). Le middleware bloque `/admin` sans session, et chaque action serveur (création, modification, suppression) revérifie la session. Les fichiers partent du navigateur directement vers Supabase via des URLs d'upload signées, valables uniquement pour le catalogue en cours.
