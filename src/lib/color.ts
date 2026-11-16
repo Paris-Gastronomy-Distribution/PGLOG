@@ -1,6 +1,6 @@
 type RGB = [number, number, number];
 
-export function parseHex(hex: string): RGB | null {
+function parseHex(hex: string): RGB | null {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
   if (!m) return null;
   const n = parseInt(m[1], 16);

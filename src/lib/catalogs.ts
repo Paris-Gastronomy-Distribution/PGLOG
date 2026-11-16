@@ -5,12 +5,25 @@ import { DEMO_CATALOG, DEMO_SLUG } from "./demo-catalog";
 import { getSiteUrl } from "./site";
 import { getBackendStatus, getStore } from "./store";
 import type { CatalogStore } from "./store/types";
-import type { CatalogRow, ViewerCatalog } from "./types";
+import { isActive, type CatalogRow, type ViewerCatalog } from "./types";
+
+/** Version des fichiers : invalide les caches si un slug est réutilisé. */
+const fileVersion = (row: CatalogRow) => Date.parse(row.created_at) || 0;
+
+function pageRatio(row: CatalogRow): number {
+  return row.page_width && row.page_height
+    ? row.page_width / row.page_height
+    : FALLBACK_PAGE_SIZE.width / FALLBACK_PAGE_SIZE.height;
+}
+
+/** URLs publiques des pages, dans l'ordre. */
+export function pageUrls(row: CatalogRow, store: CatalogStore): string[] {
+  const version = fileVersion(row);
+  return Array.from({ length: row.page_count }, (_, i) => withVersion(store.publicUrl(pagePath(row.slug, i + 1)), version));
+}
 
 function toViewerCatalog(row: CatalogRow, store: CatalogStore): ViewerCatalog {
-  const version = Date.parse(row.created_at) || 0;
   const hasSize = Boolean(row.page_width && row.page_height);
-
   return {
     slug: row.slug,
     title: row.title,
@@ -18,10 +31,8 @@ function toViewerCatalog(row: CatalogRow, store: CatalogStore): ViewerCatalog {
     accentColor: row.accent_color,
     pageWidth: hasSize ? row.page_width! : FALLBACK_PAGE_SIZE.width,
     pageHeight: hasSize ? row.page_height! : FALLBACK_PAGE_SIZE.height,
-    pages: Array.from({ length: row.page_count }, (_, i) =>
-      withVersion(store.publicUrl(pagePath(row.slug, i + 1)), version),
-    ),
-    ogImage: withVersion(store.publicUrl(ogImagePath(row.slug)), version),
+    pages: pageUrls(row, store),
+    ogImage: withVersion(store.publicUrl(ogImagePath(row.slug)), fileVersion(row)),
     downloadUrl: row.allow_download && row.pdf_url ? pdfDownloadUrl(row.pdf_url, row.slug) : null,
   };
 }
@@ -36,22 +47,27 @@ function isDemoEnabled(): boolean {
   return process.env.ENABLE_DEMO === "true" || getBackendStatus().kind !== "supabase";
 }
 
+export type CatalogLookup =
+  | { status: "ok"; catalog: ViewerCatalog }
+  | { status: "disabled" }
+  | { status: "missing" };
+
 /**
- * Catalogue à afficher pour un slug, ou null s'il n'existe pas.
- * `cache` déduplique l'appel entre generateMetadata() et la page.
- * Une erreur de stockage est propagée (error.tsx), un slug inconnu renvoie
- * null (not-found.tsx).
+ * Catalogue à afficher pour un slug. `cache` déduplique l'appel entre
+ * generateMetadata() et la page. Une erreur de stockage est propagée
+ * (error.tsx) ; un slug inconnu donne « missing » (404).
  */
-export const getViewerCatalog = cache(async (slug: string): Promise<ViewerCatalog | null> => {
-  if (!isValidSlug(slug)) return null;
-  if (slug === DEMO_SLUG) return isDemoEnabled() ? DEMO_CATALOG : null;
+export const lookupCatalog = cache(async (slug: string): Promise<CatalogLookup> => {
+  if (!isValidSlug(slug)) return { status: "missing" };
+  if (slug === DEMO_SLUG) return isDemoEnabled() ? { status: "ok", catalog: DEMO_CATALOG } : { status: "missing" };
 
   const store = getStore();
-  if (!store) return null;
+  if (!store) return { status: "missing" };
 
   const row = await store.getBySlug(slug);
-  if (!row || row.page_count < 1) return null;
-  return toViewerCatalog(row, store);
+  if (!row || row.page_count < 1) return { status: "missing" };
+  if (!isActive(row)) return { status: "disabled" };
+  return { status: "ok", catalog: toViewerCatalog(row, store) };
 });
 
 /** Lien public d'un catalogue, à envoyer aux clients. */
@@ -68,6 +84,7 @@ export interface AdminCatalog {
   accentColor: string;
   allowDownload: boolean;
   hasPdf: boolean;
+  active: boolean;
   pageCount: number;
   coverUrl: string | null;
   coverRatio: number;
@@ -84,12 +101,10 @@ export function toAdminCatalog(row: CatalogRow): AdminCatalog {
     accentColor: row.accent_color,
     allowDownload: row.allow_download,
     hasPdf: Boolean(row.pdf_url),
+    active: isActive(row),
     pageCount: row.page_count,
-    coverUrl: row.cover_url ? withVersion(row.cover_url, Date.parse(row.created_at) || 0) : null,
-    coverRatio:
-      row.page_width && row.page_height
-        ? row.page_width / row.page_height
-        : FALLBACK_PAGE_SIZE.width / FALLBACK_PAGE_SIZE.height,
+    coverUrl: row.cover_url ? withVersion(row.cover_url, fileVersion(row)) : null,
+    coverRatio: pageRatio(row),
     createdAt: row.created_at,
     publicUrl: catalogPublicUrl(row.slug),
   };

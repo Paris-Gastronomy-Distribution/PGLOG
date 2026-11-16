@@ -2,19 +2,19 @@
 
 import { useEffect, useState } from "react";
 
-/** « Bonjour » le matin, « Bon après-midi » de 12 h à 18 h, « Bonsoir » ensuite. */
-export function greetingFor(date: Date): string {
+/** « Bonjour » jusqu'à midi, « Bon après-midi » de 12 h à 18 h, « Bonsoir » ensuite. */
+function greetingFor(date: Date): string {
   const h = date.getHours();
-  if (h >= 5 && h < 12) return "Bonjour Mamie";
-  if (h >= 12 && h < 18) return "Bon après-midi Mamie";
-  return "Bonsoir Mamie";
+  if (h >= 5 && h < 12) return "Bonjour";
+  if (h >= 12 && h < 18) return "Bon après-midi";
+  return "Bonsoir";
 }
 
 const dateFormat = new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long" });
 
 /**
- * Salutation à l'heure de l'appareil de Mamie (calculée dans le navigateur,
- * pas sur le serveur qui est réglé sur une autre heure). Mise à jour chaque minute.
+ * Salutation à l'heure locale de l'appareil (calculée dans le navigateur : le
+ * serveur n'est pas sur le même fuseau). Mise à jour chaque minute.
  */
 export function Greeting({ className = "", withDate = false }: { className?: string; withDate?: boolean }) {
   const [now, setNow] = useState<Date | null>(null);
@@ -25,17 +25,14 @@ export function Greeting({ className = "", withDate = false }: { className?: str
     return () => clearInterval(id);
   }, []);
 
+  const fade = `transition-opacity duration-300 ${now ? "opacity-100" : "opacity-0"}`;
   const date = now ? dateFormat.format(now) : null;
 
   return (
     <div>
-      <h1 className={`transition-opacity duration-300 ${now ? "opacity-100" : "opacity-0"} ${className}`}>
-        {now ? greetingFor(now) : "Bonjour Mamie"}
-      </h1>
+      <h1 className={`${fade} ${className}`}>{now ? greetingFor(now) : "Bonjour"}</h1>
       {withDate && (
-        <p className={`mt-1.5 text-[15px] text-slate transition-opacity duration-300 ${now ? "opacity-100" : "opacity-0"}`}>
-          {date ? date.charAt(0).toUpperCase() + date.slice(1) : " "}
-        </p>
+        <p className={`mt-1.5 text-[15px] text-slate ${fade}`}>{date ? date.charAt(0).toUpperCase() + date.slice(1) : " "}</p>
       )}
     </div>
   );

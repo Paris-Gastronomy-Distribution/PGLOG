@@ -5,9 +5,11 @@ Vous créez un catalogue sur Canva, vous l'exportez en PDF et vous l'envoyez ici
 - **100 % gratuit** : Vercel (plan Hobby) + Supabase (plan Free). Aucune API payante.
 - **Conversion dans le navigateur** : le PDF est découpé en images WebP par votre navigateur (pdf.js) au moment de l'upload. Le serveur ne fait aucun calcul lourd et les clients ne téléchargent jamais le PDF pour feuilleter.
 - **Aperçu soigné** : titre, description et image de couverture apparaissent quand le lien est collé dans WhatsApp, LinkedIn ou un mail.
+- **PDF téléchargeable** : mêmes pages que le catalogue en ligne, ouverture en doubles pages.
+- **Liens permanents** : un lien fonctionne tant que vous ne le désactivez pas depuis l'administration.
 
 > **Avancement** : le code est complet.
-> ✅ Schéma Supabase · ✅ Lecteur `/c/[slug]` · ✅ Administration `/admin` (création, import, chargement, lien, renommage, suppression) · ✅ Connexion par mot de passe · ✅ Cron anti-pause Supabase
+> ✅ Schéma Supabase · ✅ Lecteur `/c/[slug]` · ✅ Administration `/admin` (création, import, chargement, lien, renommage, désactivation, suppression) · ✅ PDF téléchargeable · ✅ Connexion par mot de passe · ✅ Cron anti-pause Supabase
 > 👉 À faire de votre côté pour être en ligne : créer le projet Supabase (étapes 2 à 4) puis déployer sur Vercel (étape 6).
 
 ---
@@ -23,8 +25,9 @@ Vous créez un catalogue sur Canva, vous l'exportez en PDF et vous l'envoyez ici
 7. [Brancher un domaine personnalisé](#7-brancher-un-domaine-personnalisé)
 8. [Utilisation au quotidien](#8-utilisation-au-quotidien)
 9. [Limites du gratuit](#9-limites-du-gratuit)
-10. [Architecture et sécurité](#10-architecture-et-sécurité)
-11. [Dépannage](#11-dépannage)
+10. [Durée des liens et envoi par e-mail (Outlook)](#10-durée-des-liens-et-envoi-par-e-mail-outlook)
+11. [Architecture et sécurité](#11-architecture-et-sécurité)
+12. [Dépannage](#12-dépannage)
 
 ---
 
@@ -59,6 +62,7 @@ Vous créez un catalogue sur Canva, vous l'exportez en PDF et vous l'envoyez ici
    - les uploads passent par des URLs signées générées par le serveur ;
    - sans policy de lecture, personne ne peut lister le contenu du bucket.
 8. Si vous relancez le script plus tard (après une mise à jour du projet, par exemple), il ne casse rien : il est idempotent.
+9. **Mise à jour** : après chaque mise à jour du code qui modifie `supabase/schema.sql` (par exemple l'ajout de la colonne `is_active` pour désactiver un lien), relancez le script complet de la même façon. Tant que ce n'est pas fait, les catalogues restent lisibles ; seule la désactivation d'un lien affiche un message vous demandant de lancer le script.
 
 ## 4. Récupérer les clés Supabase
 
@@ -73,7 +77,7 @@ Vous créez un catalogue sur Canva, vous l'exportez en PDF et vous l'envoyez ici
 
 1. Clonez le dépôt et installez les dépendances :
    ```bash
-   git clone https://github.com/belou16/PGLOG.git
+   git clone https://github.com/Paris-Gastronomy-Distribution/PGLOG.git
    cd PGLOG
    npm install
    ```
@@ -141,10 +145,13 @@ Exemple avec `catalogues.mondomaine.fr`. Un sous-domaine est recommandé : il ne
    - **Titre** : visible par vos clients et dans l'aperçu WhatsApp/LinkedIn ;
    - **Lien** : se remplit tout seul depuis le titre, reste modifiable, et indique s'il est disponible ;
    - **Description** (facultatif), **couleur des boutons** du lecteur ;
-   - **Autoriser le téléchargement du PDF** : ajoute le bouton « Télécharger » (le PDF original est alors conservé en ligne).
+   - **Proposer le téléchargement en PDF** (activé par défaut) : ajoute le bouton « Télécharger ». Le PDF est assemblé à partir des pages du catalogue en ligne : même contenu, même format de page, ouverture en doubles pages comme le lecteur.
 6. Cliquez sur **Publier le catalogue**. L'écran de chargement affiche la progression réelle (« Conversion de la page 7/24 »). **Gardez l'onglet ouvert** : la conversion se fait dans votre navigateur. **Annuler** nettoie ce qui a déjà été envoyé.
 7. **Lien prêt** : **Copier le lien**, **Ouvrir**, ou envoyez-le directement par **WhatsApp** ou **e-mail**.
-8. Depuis l'accueil, chaque catalogue propose : **Copier le lien**, **Ouvrir**, **Renommer / modifier** (titre, description, couleur, téléchargement : le lien ne change pas) et **Supprimer** (la fiche et tous ses fichiers sont effacés, le lien ne fonctionne plus).
+8. Depuis l'accueil, chaque catalogue propose : **Copier le lien**, **Ouvrir**, **Renommer / modifier** et **Supprimer**.
+   - **Modifier** : titre, description, couleur, téléchargement PDF (s'il n'existe pas encore, il est créé à l'enregistrement à partir des pages en ligne) et **Lien actif**. Le lien ne change jamais.
+   - **Lien actif** décoché : le lien affiche « Ce catalogue n'est plus en ligne ». Rien n'est supprimé, vous pouvez le réactiver à tout moment. Le badge « Lien désactivé » apparaît sur la carte.
+   - **Supprimer** : la fiche et tous ses fichiers sont effacés, définitivement.
 
 ## 9. Limites du gratuit
 
@@ -158,7 +165,37 @@ Exemple avec `catalogues.mondomaine.fr`. Un sous-domaine est recommandé : il ne
 
 ⚠️ **Conditions d'utilisation de Vercel** : le plan Hobby est réservé à un usage **personnel et non commercial**. Pour un usage professionnel strict, Vercel demande le plan Pro. L'alternative gratuite qui autorise l'usage commercial est Cloudflare Workers (avec OpenNext), qui demande quelques adaptations.
 
-## 10. Architecture et sécurité
+## 10. Durée des liens et envoi par e-mail (Outlook)
+
+### Un lien reste valable tant que vous ne le désactivez pas
+
+- L'adresse `/c/{lien}` ne dépend d'aucun jeton ni d'aucune date d'expiration : les pages sont des fichiers publics du stockage, la fiche est en base.
+- Renommer, changer la couleur ou le PDF ne change **jamais** le lien.
+- Le lien cesse de fonctionner dans trois cas seulement : vous décochez **Lien actif**, vous **supprimez** le catalogue, ou l'hébergement est interrompu.
+- Pour que l'hébergement ne s'interrompe pas :
+  - **Pause Supabase** : le cron quotidien (`/api/keepalive`) l'évite. Vérifiez une fois dans Vercel (**Settings → Cron Jobs**) qu'il s'exécute sans erreur, et que `CRON_SECRET` est défini dans Vercel.
+  - **Quotas gratuits** (tableau ci-dessus) : surveillez l'*egress* Supabase si un catalogue est très diffusé. Un dépassement durable peut conduire Supabase à restreindre le projet.
+  - **Domaine** : utilisez votre propre domaine (étape 7). Si vous changez de domaine plus tard, les anciens liens ne suivront pas.
+- Désactiver un lien masque le lecteur. Un fichier déjà téléchargé (le PDF) reste évidemment chez la personne qui l'a.
+
+### Envoyer le lien par Outlook sans finir en spam
+
+Un lien seul ne bloque jamais l'envoi d'un e-mail. Le classement en spam dépend surtout de votre domaine d'envoi et de la réputation du domaine du lien. Le site est préparé pour ça :
+
+- page catalogue qui répond immédiatement (y compris aux robots de sécurité d'Outlook, *Safe Links*, qui ouvrent le lien avant votre client) ;
+- aucune redirection, aucun formulaire, aucun traceur sur les pages clients ;
+- page d'accueil du domaine neutre (pas de page de mot de passe à la racine, un motif typique de l'hameçonnage) ;
+- titre, description et image d'aperçu propres pour l'aperçu du lien dans Outlook ;
+- bouton **E-mail** de l'administration : brouillon en texte simple, un seul lien écrit en clair.
+
+Ce qui reste de votre côté, par ordre d'importance :
+
+1. **Brancher un domaine de l'entreprise** (étape 7), par exemple `catalogues.votre-domaine.fr`. Les adresses gratuites partagées (`*.vercel.app`) hébergent aussi des sites malveillants et sont plus souvent signalées par Microsoft Defender. Un lien sur le même domaine que l'adresse d'envoi est le signal le plus rassurant pour les filtres.
+2. **Envoyer depuis la messagerie de l'entreprise** (Microsoft 365 / Outlook), dont le domaine est authentifié (SPF, DKIM, DMARC : à vérifier avec votre prestataire informatique si ce n'est pas déjà fait).
+3. **Écrire le lien en clair** ou sur un texte explicite (« Voir le catalogue »). Évitez les raccourcisseurs (bit.ly…) et un texte de lien qui affiche une autre adresse que la vraie destination.
+4. Préférez le lien à la pièce jointe : un PDF lourd joint au mail est plus souvent bloqué qu'un lien.
+
+## 11. Architecture et sécurité
 
 ```
 Canva ─PDF─▶ /admin (navigateur)
@@ -178,6 +215,9 @@ Canva ─PDF─▶ /admin (navigateur)
 - **Indexation** : les pages catalogue sont marquées `noindex` et n'apparaissent pas dans Google.
 - **Cache** : chaque page catalogue est mise en cache 5 minutes (ISR) puis servie instantanément. L'admin invalide le cache à la création et à la suppression d'un catalogue.
 - **Images** : servies directement par Supabase (`<img>`), sans passer par l'optimiseur d'images de Vercel, ce qui évite ses quotas.
+- **PDF téléchargeable** : assemblé dans le navigateur de l'admin à partir des rendus des pages (JPEG, qualité ajustée page par page pour rester sous la limite de 50 Mo), format de page d'origine, affichage en doubles pages (`/PageLayout /TwoPageRight`).
+- **Désactivation** : colonne `is_active` ; un lien désactivé affiche une page sobre « Ce catalogue n'est plus en ligne ».
+- **Identité visuelle** : logo dans `public/brand/`, icône d'onglet (chapeau) dans `src/app/icon.svg` avec variante claire pour les navigateurs en thème sombre, `favicon.ico` et `apple-icon.png` pour les anciens clients et l'écran d'accueil iPhone.
 - **Catalogue de démonstration** : `/c/demo` est servi depuis `public/demo/` (fichiers générés par `node scripts/generate-demo.mjs`). Visible tant que Supabase n'est pas configuré, puis masqué automatiquement (sauf `ENABLE_DEMO=true`).
 - **En-têtes HTTP** : pas d'en-tête `X-Powered-By`, `nosniff` partout, et l'administration refuse d'être affichée dans une iframe.
 - **Administration** : `/admin` est protégé par un cookie de session signé (HMAC, `httpOnly`, 30 jours). Le middleware bloque `/admin` sans session, et chaque action serveur (création, modification, suppression) revérifie la session. Les fichiers partent du navigateur directement vers Supabase via des URLs d'upload signées, valables uniquement pour le catalogue en cours.
@@ -193,7 +233,7 @@ Canva ─PDF─▶ /admin (navigateur)
 | `npm run lint` | Vérification ESLint |
 | `node scripts/generate-demo.mjs` | Régénère le catalogue de démonstration |
 
-## 11. Dépannage
+## 12. Dépannage
 
 | Symptôme | Cause probable | Solution |
 |---|---|---|
@@ -205,3 +245,5 @@ Canva ─PDF─▶ /admin (navigateur)
 | Les catalogues renvoient une erreur après des semaines sans visite | Projet Supabase mis en pause | Dashboard Supabase → *Restore project*, et vérifiez que `CRON_SECRET` est bien défini. |
 | `npm run dev` : *address already in use :::3000* | Un ancien serveur tourne encore | Fermez-le (Gestionnaire des tâches → *Node.js*) ou lancez `npm run dev -- -p 3001`. |
 | Un lien collé dans LinkedIn montre un ancien aperçu | Cache de LinkedIn | Passez le lien dans le *Post Inspector* LinkedIn. |
+| « La base doit être mise à jour » en désactivant un lien | Colonne `is_active` absente | Relancez `supabase/schema.sql` (étape 3). |
+| Les `git push` ne redéploient plus le site | Dépôt transféré vers l'organisation GitHub | Vercel → **Project → Settings → Git** : reconnectez le dépôt `Paris-Gastronomy-Distribution/PGLOG` (installez l'application Vercel sur l'organisation si elle n'y a pas accès). |

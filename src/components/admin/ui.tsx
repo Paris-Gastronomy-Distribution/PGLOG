@@ -12,6 +12,7 @@ import {
 } from "react";
 import { buttonClass, cardClass, inputClass, type ButtonVariant } from "./styles";
 
+export { copyToClipboard } from "@/lib/clipboard";
 export { buttonClass, cardClass, inputClass };
 
 /* ---------- Boutons ---------- */
@@ -123,7 +124,9 @@ export function Toggle({
   );
 }
 
-export const ACCENT_PRESETS = ["#111111", "#C38E2F", "#B4532A", "#1E3B2F", "#6B2737", "#2F4A7A", "#7D8C55", "#C2706A"];
+/** Bleu et vert de la charte en premier, puis des teintes neutres et chaudes. */
+export const ACCENT_PRESETS = ["#2B3D86", "#194641", "#111111", "#C38E2F", "#B4532A", "#6B2737", "#7D8C55", "#C2706A"];
+export const DEFAULT_ACCENT = ACCENT_PRESETS[0];
 
 export function AccentPicker({ value, onChange, id }: { value: string; onChange: (v: string) => void; id: string }) {
   const normalized = value.toLowerCase();
@@ -193,7 +196,7 @@ export function Dialog({
       onClick={(e) => {
         if (e.target === ref.current) onClose();
       }}
-      className={`m-auto w-[calc(100%-32px)] ${wide ? "max-w-xl" : "max-w-md"} rounded-2xl border border-line bg-white p-0 text-navy shadow-[0_24px_60px_rgba(11,53,88,0.18)] backdrop:bg-navy/40 backdrop:backdrop-blur-[2px]`}
+      className={`m-auto w-[calc(100%-32px)] ${wide ? "max-w-xl" : "max-w-md"} rounded-2xl border border-line bg-white p-0 text-navy shadow-[0_24px_60px_rgba(27,36,83,0.18)] backdrop:bg-navy/40 backdrop:backdrop-blur-[2px]`}
       aria-label={title}
     >
       {open && (
@@ -234,7 +237,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {items.map((t) => (
           <div
             key={t.id}
-            className={`flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium shadow-[0_10px_30px_rgba(11,53,88,0.25)] ${t.tone === "ok" ? "bg-navy text-white" : "bg-danger text-white"}`}
+            className={`flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium shadow-[0_10px_30px_rgba(27,36,83,0.25)] ${t.tone === "ok" ? "bg-navy text-white" : "bg-danger text-white"}`}
           >
             {t.tone === "ok" && (
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-[#7ee2a8]" aria-hidden="true">
@@ -250,26 +253,3 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 }
 
 export const useToast = () => useContext(ToastContext);
-
-/* ---------- Presse-papiers ---------- */
-
-export async function copyToClipboard(text: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    const ta = document.createElement("textarea");
-    ta.value = text;
-    ta.style.cssText = "position:fixed;top:0;left:0;opacity:0;";
-    document.body.appendChild(ta);
-    ta.select();
-    let ok = false;
-    try {
-      ok = document.execCommand("copy");
-    } catch {
-      ok = false;
-    }
-    ta.remove();
-    return ok;
-  }
-}

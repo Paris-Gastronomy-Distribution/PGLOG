@@ -1,15 +1,15 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { LoginForm } from "@/components/admin/LoginForm";
-import { BookIcon } from "@/components/admin/icons";
+import { BrandLogo } from "@/components/BrandLogo";
 import { cardClass } from "@/components/admin/styles";
 import { isAdmin } from "@/lib/admin-session";
 
 export const metadata: Metadata = { title: "Connexion" };
 export const dynamic = "force-dynamic";
 
-// Déconnecté : uniquement la demande de mot de passe. « Bonjour Mamie »
-// s'affiche une fois connectée (page d'accueil de l'administration).
+// Déconnecté : uniquement la demande de mot de passe. La salutation
+// s'affiche une fois connecté (page d'accueil de l'administration).
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
   if (await isAdmin()) redirect("/admin");
   const { next } = await searchParams;
@@ -17,12 +17,11 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
 
   return (
     <main className="flex min-h-dvh items-center justify-center px-4 py-16">
-      <div className="w-full max-w-[400px]">
+      <div className="w-full max-w-100">
         <div className="mb-8 flex flex-col items-center text-center">
-          <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand text-white shadow-[0_6px_16px_rgba(0,107,255,0.3)]">
-            <BookIcon width={24} height={24} />
-          </span>
-          <h1 className="mt-6 text-[26px] font-bold tracking-tight text-navy">Entrez le mot de passe</h1>
+          <BrandLogo height={72} priority />
+          <h1 className="mt-8 text-[24px] font-bold tracking-tight text-navy">Espace catalogues</h1>
+          <p className="mt-1.5 text-[15px] text-slate">Saisissez le mot de passe pour continuer.</p>
         </div>
 
         {configured ? (

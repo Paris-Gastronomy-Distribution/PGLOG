@@ -200,7 +200,9 @@
   flex: none;
 }
 
-/* Ombre portée : suit la partie visible du livre (couverture seule, double page…). */
+/* Ombre portée : une par page en double page, révélée ou masquée en fondu
+   selon la partie visible (couverture seule, double page…). Seule l'opacité
+   est animée : aucun recalcul de mise en page ni repeinture pendant le tour de page. */
 .v-book-shadow {
   position: absolute;
   top: 0;
@@ -212,19 +214,33 @@
     0 6px 12px rgba(0, 0, 0, 0.26),
     0 18px 36px rgba(0, 0, 0, 0.32),
     0 42px 84px -10px rgba(0, 0, 0, 0.55);
-  transition:
-    left var(--v-flip) var(--v-ease),
-    width var(--v-flip) var(--v-ease);
+  transition: opacity var(--v-flip) var(--v-ease);
+  will-change: opacity;
   pointer-events: none;
 }
 
-/* Ombre de contact au sol. */
-.v-book-shadow::after {
+.v-book-shadow[data-hidden] {
+  opacity: 0;
+}
+
+/* Ombre de contact au sol : déplacée et étirée par transform (composition GPU). */
+.v-book-ground {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 0;
+  transform-origin: 0 0;
+  transition: transform var(--v-flip) var(--v-ease);
+  will-change: transform;
+  pointer-events: none;
+}
+
+.v-book-ground::after {
   content: "";
   position: absolute;
   left: 5%;
   right: 5%;
-  bottom: -30px;
+  top: -6px;
   height: 36px;
   background: radial-gradient(50% 50% at 50% 50%, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0));
   filter: blur(6px);
@@ -236,10 +252,23 @@
   z-index: 1;
 }
 
+/* Squelettes de chargement : reflet qui glisse (transform, sans repeinture). */
 .v-book-skeleton,
-.v-placeholder {
-  background: linear-gradient(100deg, #e4e1db 30%, #efece7 50%, #e4e1db 70%) 0 0 / 300% 100%;
-  animation: fb-shimmer 1.4s linear infinite;
+.v-placeholder,
+.fb-page__skeleton {
+  overflow: hidden;
+  background: #e6e3dd;
+}
+
+.v-book-skeleton::after,
+.v-placeholder::after,
+.fb-page__skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, rgba(255, 255, 255, 0) 30%, rgba(255, 255, 255, 0.5) 50%, rgba(255, 255, 255, 0) 70%);
+  transform: translateX(-100%);
+  animation: fb-sweep 1.4s linear infinite;
 }
 
 .v-book-skeleton {
@@ -319,11 +348,6 @@
   inset: 0;
 }
 
-.fb-page__skeleton {
-  background: linear-gradient(100deg, #e9e6e0 30%, #f4f2ee 50%, #e9e6e0 70%) 0 0 / 300% 100%;
-  animation: fb-shimmer 1.4s linear infinite;
-}
-
 .fb-page__img {
   display: block;
   width: 100%;
@@ -358,8 +382,9 @@
   display: flex;
 }
 
-.fb-page[data-state="error"] .fb-page__skeleton {
+.fb-page[data-state="error"] .fb-page__skeleton::after {
   animation: none;
+  opacity: 0;
 }
 
 /* Ombre de reliure, côté intérieur de chaque page. */
@@ -384,12 +409,9 @@
   opacity: 0.55;
 }
 
-@keyframes fb-shimmer {
-  from {
-    background-position: 100% 0;
-  }
+@keyframes fb-sweep {
   to {
-    background-position: 0 0;
+    transform: translateX(100%);
   }
 }
 
@@ -689,9 +711,10 @@
     --v-flip: 1ms;
   }
 
-  .v-book-skeleton,
-  .v-placeholder,
-  .fb-page__skeleton {
+  .v-book-skeleton::after,
+  .v-placeholder::after,
+  .fb-page__skeleton::after {
     animation: none;
+    opacity: 0;
   }
 }

@@ -11,7 +11,7 @@ export const PAGE_RENDER_WIDTH = 1600;
 /** Ratio A4 portrait, utilisé si un catalogue n'a pas de dimensions connues. */
 export const FALLBACK_PAGE_SIZE = { width: 1600, height: 2263 } as const;
 
-export const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export function isValidSlug(slug: string): boolean {
   return slug.length > 0 && slug.length <= 80 && SLUG_PATTERN.test(slug);

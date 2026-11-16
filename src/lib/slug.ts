@@ -1,7 +1,7 @@
 import { isValidSlug } from "./catalog-urls";
 
 /** Slugs réservés (routes ou contenus existants). */
-export const RESERVED_SLUGS = new Set(["demo"]);
+const RESERVED_SLUGS = new Set(["demo"]);
 
 /** « Catalogue Été 2026 ! » → « catalogue-ete-2026 ». */
 export function slugify(input: string): string {

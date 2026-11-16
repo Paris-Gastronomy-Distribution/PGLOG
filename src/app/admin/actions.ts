@@ -5,8 +5,8 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { requireAdmin, UnauthorizedError } from "@/lib/admin-session";
 import { ADMIN_COOKIE, createSessionToken, passwordMatches, SESSION_MAX_AGE } from "@/lib/auth";
-import { coverPath, ogImagePath, pagePath, pdfPath } from "@/lib/catalog-urls";
-import { catalogPublicUrl, toAdminCatalog, type AdminCatalog } from "@/lib/catalogs";
+import { coverPath, ogImagePath, pagePath, pdfPath, withVersion } from "@/lib/catalog-urls";
+import { catalogPublicUrl, pageUrls, toAdminCatalog, type AdminCatalog } from "@/lib/catalogs";
 import { slugIssue } from "@/lib/slug";
 import { getStore } from "@/lib/store";
 import { StoreError, type CatalogStore, type UploadTarget } from "@/lib/store/types";
@@ -48,6 +48,15 @@ function checkTexts(title: string, description: string) {
 function revalidateCatalog(slug: string) {
   revalidatePath(`/c/${slug}`);
   revalidatePath("/admin");
+}
+
+/** URL du PDF stocké, versionnée pour contourner le cache CDN s'il est régénéré. */
+const storedPdfUrl = (store: CatalogStore, slug: string) => withVersion(store.publicUrl(pdfPath(slug)), Date.now());
+
+async function requireCatalog(store: CatalogStore, id: string) {
+  const row = await store.getById(id);
+  if (!row) throw new InputError("Ce catalogue n'existe plus.");
+  return row;
 }
 
 /* ---------- Connexion ---------- */
@@ -156,7 +165,7 @@ export async function finalizeCatalogAction(input: FinalizeInput): Promise<Actio
       cover_url: store.publicUrl(coverPath(input.slug)),
       accent_color: input.accentColor,
       allow_download: input.withPdf,
-      pdf_url: input.withPdf ? store.publicUrl(pdfPath(input.slug)) : null,
+      pdf_url: input.withPdf ? storedPdfUrl(store, input.slug) : null,
     });
     revalidateCatalog(input.slug);
     return { ok: true, data: { url: catalogPublicUrl(input.slug), slug: input.slug } };
@@ -186,6 +195,8 @@ export async function updateCatalogAction(input: {
   description: string;
   accentColor: string;
   allowDownload: boolean;
+  /** true : le navigateur vient d'envoyer un PDF généré (voir preparePdfAction). */
+  pdfUploaded?: boolean;
 }): Promise<ActionResult<AdminCatalog>> {
   try {
     await requireAdmin();
@@ -193,15 +204,49 @@ export async function updateCatalogAction(input: {
     checkTexts(input.title, input.description);
     if (!ACCENT.test(input.accentColor)) throw new InputError("Couleur d'accent invalide.");
 
-    const current = await store.getById(input.id);
-    if (!current) throw new InputError("Ce catalogue n'existe plus.");
+    const current = await requireCatalog(store, input.id);
+    const pdfUrl = input.pdfUploaded ? storedPdfUrl(store, current.slug) : current.pdf_url;
 
     const row = await store.update(input.id, {
       title: input.title.trim(),
       description: input.description.trim() || null,
       accent_color: input.accentColor,
-      allow_download: input.allowDownload && Boolean(current.pdf_url),
+      allow_download: input.allowDownload && Boolean(pdfUrl),
+      ...(input.pdfUploaded ? { pdf_url: pdfUrl } : {}),
     });
+    revalidateCatalog(row.slug);
+    return { ok: true, data: toAdminCatalog(row) };
+  } catch (err) {
+    return failure(err);
+  }
+}
+
+/**
+ * Pour un catalogue publié sans PDF : URLs de ses pages et destination
+ * d'envoi du PDF, que le navigateur de l'admin assemble à partir des pages.
+ */
+export async function preparePdfAction(id: string): Promise<
+  ActionResult<{ pages: string[]; target: UploadTarget; pageWidth: number | null; pageHeight: number | null }>
+> {
+  try {
+    await requireAdmin();
+    const store = requireStore();
+    const row = await requireCatalog(store, id);
+    const [target] = await store.createUploadTargets([pdfPath(row.slug)]);
+    return {
+      ok: true,
+      data: { pages: pageUrls(row, store), target, pageWidth: row.page_width, pageHeight: row.page_height },
+    };
+  } catch (err) {
+    return failure(err);
+  }
+}
+
+/** Désactive ou réactive le lien public, sans rien supprimer. */
+export async function setCatalogActiveAction(id: string, active: boolean): Promise<ActionResult<AdminCatalog>> {
+  try {
+    await requireAdmin();
+    const row = await requireStore().update(id, { is_active: active });
     revalidateCatalog(row.slug);
     return { ok: true, data: toAdminCatalog(row) };
   } catch (err) {

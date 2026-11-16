@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { logoutAction } from "@/app/admin/actions";
-import { BookIcon, LogoutIcon } from "@/components/admin/icons";
+import { LogoutIcon } from "@/components/admin/icons";
+import { BrandLogo } from "@/components/BrandLogo";
 import { cardClass } from "@/components/admin/styles";
 import { isAdmin } from "@/lib/admin-session";
 import { getBackendStatus } from "@/lib/store";
@@ -17,26 +18,20 @@ export default async function AdminAppLayout({ children }: { children: React.Rea
     <div className="flex min-h-dvh flex-col">
       <header className="sticky top-0 z-30 border-b border-line bg-white/90 backdrop-blur-md">
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
-          <Link href="/admin" className="flex items-center gap-2.5 text-[16px] font-bold tracking-tight text-navy">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand text-white">
-              <BookIcon width={17} height={17} />
-            </span>
-            Catalogues
+          <Link href="/admin" className="flex items-center gap-3 rounded-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand">
+            <BrandLogo height={38} priority />
+            <span className="h-6 w-px bg-line" aria-hidden="true" />
+            <span className="text-[15px] font-semibold tracking-tight text-navy">Catalogues</span>
           </Link>
-          <div className="flex items-center gap-2">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-soft text-[14px] font-bold text-brand" aria-hidden="true">
-              M
-            </span>
-            <form action={logoutAction}>
-              <button
-                type="submit"
-                className="inline-flex h-9 items-center gap-2 rounded-full px-3 text-[14px] font-semibold text-slate transition hover:bg-brand-soft hover:text-brand"
-              >
-                <LogoutIcon width={16} height={16} />
-                <span className="hidden sm:inline">Déconnexion</span>
-              </button>
-            </form>
-          </div>
+          <form action={logoutAction}>
+            <button
+              type="submit"
+              className="inline-flex h-9 items-center gap-2 rounded-full px-3 text-[14px] font-semibold text-slate transition hover:bg-brand-soft hover:text-brand"
+            >
+              <LogoutIcon width={16} height={16} />
+              <span className="hidden sm:inline">Déconnexion</span>
+            </button>
+          </form>
         </div>
       </header>
 

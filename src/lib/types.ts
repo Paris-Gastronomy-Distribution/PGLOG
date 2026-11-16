@@ -11,8 +11,15 @@ export interface CatalogRow {
   accent_color: string;
   allow_download: boolean;
   pdf_url: string | null;
+  /**
+   * false : lien désactivé depuis l'administration (le catalogue est conservé).
+   * Absent si la colonne n'a pas encore été ajoutée à la base : actif.
+   */
+  is_active?: boolean;
   created_at: string;
 }
+
+export const isActive = (row: Pick<CatalogRow, "is_active">) => row.is_active !== false;
 
 /** Données strictement nécessaires au viewer, URLs déjà résolues. */
 export interface ViewerCatalog {

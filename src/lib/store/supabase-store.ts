@@ -5,8 +5,11 @@ import { isNetworkError } from "../supabase/timeout-fetch";
 import type { CatalogRow } from "../types";
 import { StoreError, type CatalogPatch, type CatalogStore, type NewCatalog, type UploadTarget } from "./types";
 
-const COLUMNS =
-  "id, slug, title, description, page_count, page_width, page_height, cover_url, accent_color, allow_download, pdf_url, created_at";
+/**
+ * `*` plutôt qu'une liste figée : une colonne ajoutée par une migration
+ * (is_active…) ne casse pas la lecture tant que le SQL n'a pas été relancé.
+ */
+const COLUMNS = "*";
 
 async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
   const out: R[] = new Array(items.length);
@@ -87,6 +90,11 @@ export function createSupabaseStore(db: SupabaseClient): CatalogStore {
 
     async update(id, patch: CatalogPatch) {
       const { data, error } = await db.from("catalogs").update(patch).eq("id", id).select(COLUMNS).single<CatalogRow>();
+      if (error && /is_active/.test(error.message)) {
+        throw new StoreError(
+          "La base doit être mise à jour : exécutez supabase/schema.sql dans Supabase → SQL Editor, puis réessayez.",
+        );
+      }
       if (error || !data) return fail("Modification impossible", error?.message ?? "catalogue introuvable");
       return data;
     },

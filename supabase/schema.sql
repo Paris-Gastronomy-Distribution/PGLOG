@@ -37,18 +37,23 @@ create table if not exists public.catalogs (
   allow_download boolean     not null default false,
   pdf_url        text,
 
+  -- false : lien désactivé depuis l'administration (rien n'est supprimé).
+  is_active      boolean     not null default true,
+
   created_at     timestamptz not null default now()
 );
 
 -- Colonnes ajoutées après coup : sans effet si elles existent déjà.
 alter table public.catalogs add column if not exists page_width  int;
 alter table public.catalogs add column if not exists page_height int;
+alter table public.catalogs add column if not exists is_active   boolean not null default true;
 
 create index if not exists catalogs_created_at_idx on public.catalogs (created_at desc);
 
 comment on table  public.catalogs              is 'Catalogues digitaux (flipbooks) publiés sur /c/{slug}.';
 comment on column public.catalogs.page_width   is 'Largeur en px des pages rendues (WebP).';
 comment on column public.catalogs.page_height  is 'Hauteur en px des pages rendues (WebP).';
+comment on column public.catalogs.is_active    is 'false : le lien /c/{slug} affiche « catalogue indisponible ».';
 
 
 -- -----------------------------------------------------------------------------
@@ -86,7 +91,7 @@ grant select, insert, update, delete on table public.catalogs to service_role;
 --   {slug}/page-001.webp … page-NNN.webp   pages, 1600 px de large, WebP q0.82
 --   {slug}/cover.webp                      miniature 400 px (liste admin)
 --   {slug}/og.jpg                          aperçu 1200×630 (WhatsApp, LinkedIn, mail)
---   {slug}/{slug}.pdf                      PDF original (si téléchargement autorisé)
+--   {slug}/{slug}.pdf                      PDF téléchargeable, mêmes pages que le lecteur
 --
 -- Limite : 50 Mo par fichier (= plafond du plan gratuit Supabase).
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)

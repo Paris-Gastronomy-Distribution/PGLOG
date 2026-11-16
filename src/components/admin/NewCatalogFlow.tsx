@@ -8,7 +8,8 @@ import { sanitizeSlugInput, slugify, slugIssue, titleFromFilename } from "@/lib/
 import { ArrowLeftIcon, CheckIcon, ExternalIcon, LinkIcon, MailIcon, PlusIcon, WhatsAppIcon } from "./icons";
 import { PdfDropzone, type LoadedPdf } from "./PdfDropzone";
 import { formatBytes, openPdf, publishCatalog, PublishError, renderThumbnail, type PublishProgress } from "./pipeline";
-import { AccentPicker, Button, buttonClass, cardClass, copyToClipboard, Field, inputClass, Spinner, Toggle, useToast } from "./ui";
+import { mailtoHref, whatsappHref } from "./share";
+import { AccentPicker, Button, DEFAULT_ACCENT, buttonClass, cardClass, copyToClipboard, Field, inputClass, Spinner, Toggle, useToast } from "./ui";
 
 type SlugCheck = { slug: string; available: boolean | null; error?: string };
 
@@ -31,13 +32,12 @@ export function NewCatalogFlow({ siteHost, isLocal }: { siteHost: string; isLoca
   const [slug, setSlug] = useState("");
   const [slugTouched, setSlugTouched] = useState(false);
   const [description, setDescription] = useState("");
-  const [accent, setAccent] = useState("#111111");
-  const [allowDownload, setAllowDownload] = useState(false);
+  const [accent, setAccent] = useState(DEFAULT_ACCENT);
+  const [allowDownload, setAllowDownload] = useState(true);
   const [check, setCheck] = useState<SlugCheck | null>(null);
   const [recheck, setRecheck] = useState(0);
 
   /* ---------- PDF ---------- */
-  const fileRef = useRef<File | null>(null);
   const pdfRef = useRef<PDFDocumentProxy | null>(null);
   const [loaded, setLoaded] = useState<LoadedPdf | null>(null);
   const [fileLoading, setFileLoading] = useState(false);
@@ -95,12 +95,10 @@ export function NewCatalogFlow({ siteHost, isLocal }: { siteHost: string; isLoca
       setLoaded(null);
       void pdfRef.current?.loadingTask.destroy();
       pdfRef.current = null;
-      fileRef.current = null;
       try {
         const pdf = await openPdf(file);
         const thumbnail = await renderThumbnail(pdf);
         pdfRef.current = pdf;
-        fileRef.current = file;
         setLoaded({ name: file.name, size: formatBytes(file.size), pages: pdf.numPages, thumbnail });
         setTitle((t) => t || titleFromFilename(file.name));
       } catch (err) {
@@ -115,7 +113,6 @@ export function NewCatalogFlow({ siteHost, isLocal }: { siteHost: string; isLoca
   const clearFile = () => {
     void pdfRef.current?.loadingTask.destroy();
     pdfRef.current = null;
-    fileRef.current = null;
     setLoaded(null);
   };
 
@@ -132,14 +129,13 @@ export function NewCatalogFlow({ siteHost, isLocal }: { siteHost: string; isLoca
 
   const publish = useCallback(async () => {
     const pdf = pdfRef.current;
-    const file = fileRef.current;
-    if (!pdf || !file) return;
+    if (!pdf) return;
     const controller = new AbortController();
     abortRef.current = controller;
     setPhase({ name: "publishing", progress: { stage: "prepare", total: pdf.numPages, rendered: 0, uploaded: 0 } });
     try {
       const res = await publishCatalog(
-        { file, pdf, slug: effectiveSlug, title, description, accentColor: accent, allowDownload },
+        { pdf, slug: effectiveSlug, title, description, accentColor: accent, allowDownload },
         (progress) => setPhase((p) => (p.name === "publishing" ? { ...p, progress } : p)),
         controller.signal,
       );
@@ -189,8 +185,8 @@ export function NewCatalogFlow({ siteHost, isLocal }: { siteHost: string; isLoca
     setSlug("");
     setSlugTouched(false);
     setDescription("");
-    setAccent("#111111");
-    setAllowDownload(false);
+    setAccent(DEFAULT_ACCENT);
+    setAllowDownload(true);
     setCheck(null);
     setPhase({ name: "form" });
   };
@@ -312,8 +308,8 @@ export function NewCatalogFlow({ siteHost, isLocal }: { siteHost: string; isLoca
                 id="download"
                 checked={allowDownload}
                 onChange={setAllowDownload}
-                label="Autoriser le téléchargement du PDF"
-                description="Ajoute un bouton « Télécharger » dans le lecteur. Le PDF original est alors conservé en ligne."
+                label="Proposer le téléchargement en PDF"
+                description="Ajoute un bouton « Télécharger » dans le lecteur. Le PDF reprend exactement les pages du catalogue en ligne et s'ouvre en doubles pages."
               />
             </div>
           </div>
@@ -382,7 +378,7 @@ function PublishingView({
       state: stage === "prepare" ? "todo" : stage === "pages" ? "active" : "done",
     },
     ...(withPdf
-      ? [{ label: "Envoi du PDF original", state: (stage === "pdf" ? "active" : stage === "finalize" ? "done" : "todo") as "done" | "active" | "todo" }]
+      ? [{ label: "Création du PDF téléchargeable", state: (stage === "pdf" ? "active" : stage === "finalize" ? "done" : "todo") as "done" | "active" | "todo" }]
       : []),
     { label: "Mise en ligne", state: stage === "finalize" ? "active" : "todo" },
   ];
@@ -391,7 +387,7 @@ function PublishingView({
     <div className={`${cardClass} mx-auto flex w-full max-w-lg flex-col items-center px-6 py-10 text-center sm:px-10`} aria-live="polite">
       {progress.coverPreview ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={progress.coverPreview} alt="" className="h-48 w-auto rounded-md bg-white shadow-[0_14px_36px_rgba(11,53,88,0.22)]" />
+        <img src={progress.coverPreview} alt="" className="h-48 w-auto rounded-md bg-white shadow-[0_14px_36px_rgba(27,36,83,0.22)]" />
       ) : (
         <div className="h-48 w-34 animate-pulse rounded-md bg-line-soft" />
       )}
@@ -494,8 +490,6 @@ function SuccessView({
     }
   };
 
-  const message = `${title} : ${url}`;
-
   return (
     <div className={`${cardClass} mx-auto flex w-full max-w-xl flex-col items-center px-6 py-10 text-center sm:px-10`}>
       <span className="flex h-14 w-14 items-center justify-center rounded-full bg-success text-white shadow-[0_0_0_8px_rgba(30,158,90,0.12)]">
@@ -511,7 +505,7 @@ function SuccessView({
       <div className="mt-8 flex w-full items-center gap-4 rounded-xl border border-line bg-canvas p-4 text-left">
         {cover && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={cover} alt="" className="h-20 w-auto rounded bg-white shadow-[0_6px_16px_rgba(11,53,88,0.18)]" />
+          <img src={cover} alt="" className="h-20 w-auto rounded bg-white shadow-[0_6px_16px_rgba(27,36,83,0.18)]" />
         )}
         <div className="min-w-0">
           <p className="truncate text-[15px] font-semibold text-navy">{title}</p>
@@ -538,14 +532,11 @@ function SuccessView({
           <ExternalIcon width={16} height={16} />
           Ouvrir
         </a>
-        <a href={`https://wa.me/?text=${encodeURIComponent(message)}`} target="_blank" rel="noreferrer" className={buttonClass("secondary")}>
+        <a href={whatsappHref(title, url)} target="_blank" rel="noreferrer" className={buttonClass("secondary")}>
           <WhatsAppIcon width={16} height={16} />
           WhatsApp
         </a>
-        <a
-          href={`mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(`Bonjour,\n\nVoici notre catalogue : ${url}\n\nBonne lecture !`)}`}
-          className={buttonClass("secondary")}
-        >
+        <a href={mailtoHref(title, url)} className={buttonClass("secondary")}>
           <MailIcon width={16} height={16} />
           E-mail
         </a>

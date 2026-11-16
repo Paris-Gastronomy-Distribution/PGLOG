@@ -1,7 +1,18 @@
-import { redirect } from "next/navigation";
+import type { Metadata } from "next";
+import { StatusScreen } from "@/components/StatusScreen";
 
-// La racine du site mène à l'administration (protégée par mot de passe).
-// Vos clients, eux, ne reçoivent que des liens /c/{catalogue}.
+export const metadata: Metadata = { title: "Catalogues" };
+
+/**
+ * Racine du site : page neutre, sans formulaire ni redirection. Les filtres de
+ * messagerie (Outlook / Microsoft Defender, Gmail…) analysent aussi la racine
+ * du domaine d'un lien ; une page de mot de passe à cet endroit ressemble à de
+ * l'hameçonnage. L'administration reste accessible sur /admin.
+ */
 export default function Home() {
-  redirect("/admin");
+  return (
+    <StatusScreen title="Catalogues">
+      <p>Pour consulter un catalogue, ouvrez le lien qui vous a été envoyé.</p>
+    </StatusScreen>
+  );
 }

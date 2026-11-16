@@ -64,7 +64,13 @@ function loadPage(page: HTMLElement | undefined) {
   page.dataset.state = "loading";
   let retried = false;
   img.onload = () => {
-    page.dataset.state = "loaded";
+    // Image décodée avant d'être affichée : pas d'à-coup au milieu d'un tour de page.
+    void img
+      .decode()
+      .catch(() => undefined)
+      .then(() => {
+        page.dataset.state = "loaded";
+      });
   };
   img.onerror = () => {
     if (!retried) {

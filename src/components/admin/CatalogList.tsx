@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
-import { deleteCatalogAction, updateCatalogAction } from "@/app/admin/actions";
+import { deleteCatalogAction, preparePdfAction, setCatalogActiveAction, updateCatalogAction } from "@/app/admin/actions";
 import type { AdminCatalog } from "@/lib/catalogs";
 import { BookIcon, ExternalIcon, LinkIcon, PencilIcon, PlusIcon, SearchIcon, TrashIcon } from "./icons";
-import { AccentPicker, Button, buttonClass, cardClass, copyToClipboard, Dialog, Field, IconButton, inputClass, Spinner, Toggle, useToast } from "./ui";
+import { generateCatalogPdf, PublishError } from "./pipeline";
+import { AccentPicker, Button, DEFAULT_ACCENT, buttonClass, cardClass, copyToClipboard, Dialog, Field, IconButton, inputClass, Spinner, Toggle, useToast } from "./ui";
 
 const dateFmt = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short", year: "numeric" });
 
@@ -67,7 +68,7 @@ export function CatalogList({ catalogs }: { catalogs: AdminCatalog[] }) {
       ) : (
         <ul className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {visible.map((c) => (
-            <li key={c.id} className={`${cardClass} group flex flex-col overflow-hidden transition hover:shadow-[0_8px_24px_rgba(11,53,88,0.12)]`}>
+            <li key={c.id} className={`${cardClass} group flex flex-col overflow-hidden transition hover:shadow-[0_8px_24px_rgba(27,36,83,0.12)]`}>
               <div className="h-1.5 shrink-0" style={{ background: c.accentColor }} aria-hidden="true" />
 
               <a
@@ -75,15 +76,18 @@ export function CatalogList({ catalogs }: { catalogs: AdminCatalog[] }) {
                 target="_blank"
                 rel="noreferrer"
                 aria-label={`Ouvrir ${c.title}`}
-                className="flex h-52 items-center justify-center bg-canvas p-5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand"
+                className="relative flex h-52 items-center justify-center bg-canvas p-5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand"
               >
+                {!c.active && (
+                  <span className="absolute top-3 left-3 z-10 rounded-full bg-navy px-2.5 py-1 text-[12px] font-semibold text-white">Lien désactivé</span>
+                )}
                 {c.coverUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={c.coverUrl}
                     alt=""
                     loading="lazy"
-                    className="max-h-full max-w-full rounded-[3px] bg-white shadow-[0_8px_22px_rgba(11,53,88,0.2)] transition duration-300 group-hover:-translate-y-0.5"
+                    className={`max-h-full max-w-full rounded-[3px] bg-white shadow-[0_8px_22px_rgba(27,36,83,0.2)] transition duration-300 group-hover:-translate-y-0.5 ${c.active ? "" : "opacity-45 grayscale"}`}
                     style={{ aspectRatio: c.coverRatio }}
                   />
                 ) : (
@@ -97,6 +101,7 @@ export function CatalogList({ catalogs }: { catalogs: AdminCatalog[] }) {
                 </h3>
                 <p className="mt-1 text-[13px] text-slate">
                   {c.pageCount} pages · {dateFmt.format(new Date(c.createdAt))}
+                  {c.allowDownload && c.hasPdf && " · PDF"}
                 </p>
                 <a href={c.publicUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex w-fit items-center gap-1 text-[13px] font-semibold text-brand hover:underline">
                   Voir le catalogue
@@ -138,26 +143,60 @@ function EditDialog({ catalog, onClose }: { catalog: AdminCatalog | null; onClos
   const toast = useToast();
   const [title, setTitle] = useState(catalog?.title ?? "");
   const [description, setDescription] = useState(catalog?.description ?? "");
-  const [accent, setAccent] = useState(catalog?.accentColor ?? "#111111");
-  const [allowDownload, setAllowDownload] = useState(catalog?.allowDownload ?? false);
+  const [accent, setAccent] = useState(catalog?.accentColor ?? DEFAULT_ACCENT);
+  const [allowDownload, setAllowDownload] = useState(Boolean(catalog?.allowDownload && catalog.hasPdf));
+  const [active, setActive] = useState(catalog?.active ?? true);
+  const [pdfProgress, setPdfProgress] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  // Le PDF n'existe pas encore : il est assemblé ici à partir des pages en ligne.
+  const needsPdf = Boolean(catalog && allowDownload && !catalog.hasPdf);
+
+  const buildPdf = async (c: AdminCatalog): Promise<string | null> => {
+    const prep = await preparePdfAction(c.id);
+    if (!prep.ok) return prep.error;
+    try {
+      setPdfProgress("Création du PDF…");
+      await generateCatalogPdf(prep.data, title, (done, total) => setPdfProgress(`Création du PDF : page ${done}/${total}`));
+      return null;
+    } catch (err) {
+      return err instanceof PublishError ? err.message : "La création du PDF a échoué. Réessayez.";
+    } finally {
+      setPdfProgress(null);
+    }
+  };
 
   const save = () =>
     startTransition(async () => {
       if (!catalog) return;
-      const res = await updateCatalogAction({ id: catalog.id, title, description, accentColor: accent, allowDownload });
-      if (!res.ok) {
-        setError(res.error);
-        return;
+      setError(null);
+
+      if (active !== catalog.active) {
+        const res = await setCatalogActiveAction(catalog.id, active);
+        if (!res.ok) return setError(res.error);
       }
+
+      const pdfError = needsPdf ? await buildPdf(catalog) : null;
+      if (pdfError) return setError(pdfError);
+
+      const res = await updateCatalogAction({
+        id: catalog.id,
+        title,
+        description,
+        accentColor: accent,
+        allowDownload,
+        pdfUploaded: needsPdf,
+      });
+      if (!res.ok) return setError(res.error);
+
       toast("Modifications enregistrées");
       router.refresh();
       onClose();
     });
 
   return (
-    <Dialog open={Boolean(catalog)} onClose={onClose} title="Modifier le catalogue" wide>
+    <Dialog open={Boolean(catalog)} onClose={pending ? () => undefined : onClose} title="Modifier le catalogue" wide>
       {catalog && (
         <form
           onSubmit={(e) => {
@@ -172,7 +211,7 @@ function EditDialog({ catalog, onClose }: { catalog: AdminCatalog | null; onClos
           <Field label="Description" htmlFor="edit-description">
             <textarea
               id="edit-description"
-              className={`${inputClass} min-h-[80px] resize-y`}
+              className={`${inputClass} min-h-20 resize-y`}
               value={description}
               maxLength={1000}
               onChange={(e) => setDescription(e.target.value)}
@@ -181,19 +220,33 @@ function EditDialog({ catalog, onClose }: { catalog: AdminCatalog | null; onClos
           <Field label="Couleur des boutons du lecteur" htmlFor="edit-accent">
             <AccentPicker id="edit-accent" value={accent} onChange={setAccent} />
           </Field>
-          <div className="rounded-xl border border-line bg-canvas p-4">
-            <Toggle
-              id="edit-download"
-              checked={allowDownload && catalog.hasPdf}
-              onChange={setAllowDownload}
-              disabled={!catalog.hasPdf}
-              label="Autoriser le téléchargement du PDF"
-              description={
-                catalog.hasPdf
-                  ? "Affiche le bouton « Télécharger » dans le lecteur."
-                  : "Le PDF original n'a pas été conservé à l'import : recréez le catalogue avec cette option pour l'activer."
-              }
-            />
+          <div className="divide-y divide-line rounded-xl border border-line bg-canvas">
+            <div className="p-4">
+              <Toggle
+                id="edit-download"
+                checked={allowDownload}
+                onChange={setAllowDownload}
+                label="Proposer le téléchargement en PDF"
+                description={
+                  catalog.hasPdf
+                    ? "Affiche le bouton « Télécharger » dans le lecteur."
+                    : "Le PDF sera créé à l'enregistrement, à partir des pages du catalogue en ligne."
+                }
+              />
+            </div>
+            <div className="p-4">
+              <Toggle
+                id="edit-active"
+                checked={active}
+                onChange={setActive}
+                label="Lien actif"
+                description={
+                  active
+                    ? "Le catalogue est accessible à toute personne qui a le lien, sans limite de durée."
+                    : "Le lien affiche « Ce catalogue n'est plus en ligne ». Rien n'est supprimé : vous pouvez le réactiver à tout moment."
+                }
+              />
+            </div>
           </div>
           <p className="text-[13px] text-slate">Le lien ne change pas : les clients qui l&apos;ont déjà reçu voient la nouvelle version.</p>
           {error && (
@@ -201,8 +254,9 @@ function EditDialog({ catalog, onClose }: { catalog: AdminCatalog | null; onClos
               {error}
             </p>
           )}
-          <div className="flex justify-end gap-2 border-t border-line-soft pt-5">
-            <Button variant="ghost" onClick={onClose}>
+          <div className="flex items-center justify-end gap-2 border-t border-line-soft pt-5">
+            {pdfProgress && <span className="mr-auto text-[13px] tabular-nums text-slate">{pdfProgress}</span>}
+            <Button variant="ghost" onClick={onClose} disabled={pending}>
               Annuler
             </Button>
             <Button type="submit" variant="primary" disabled={pending || !title.trim()}>

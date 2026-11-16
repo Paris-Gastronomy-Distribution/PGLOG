@@ -3,6 +3,7 @@
 import "./viewer.css";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { copyToClipboard } from "@/lib/clipboard";
 import { accentPalette } from "@/lib/color";
 import type { ViewerCatalog } from "@/lib/types";
 import { CheckIcon, RefreshIcon } from "./icons";
@@ -32,29 +33,6 @@ function useCoarsePointer(): boolean {
   return coarse;
 }
 
-async function copyText(text: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    // Contexte non sécurisé (http sur le réseau local) : méthode historique.
-    const ta = document.createElement("textarea");
-    ta.value = text;
-    ta.setAttribute("readonly", "");
-    ta.style.cssText = "position:fixed;top:0;left:0;opacity:0;";
-    document.body.appendChild(ta);
-    ta.select();
-    let ok = false;
-    try {
-      ok = document.execCommand("copy");
-    } catch {
-      ok = false;
-    }
-    ta.remove();
-    return ok;
-  }
-}
-
 export default function FlipbookViewer({ catalog }: { catalog: ViewerCatalog }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLElement>(null);
@@ -82,6 +60,8 @@ export default function FlipbookViewer({ catalog }: { catalog: ViewerCatalog }) 
   const shift = mode === "double" ? (visible === "right" ? -pageW / 2 : visible === "left" ? pageW / 2 : 0) : 0;
   const shadowLeft = mode === "double" && visible === "right" ? pageW : 0;
   const shadowWidth = mode === "double" && visible !== "both" ? pageW : bookW;
+  // Ombre au sol : placée par transform pour rester fluide pendant le tour de page.
+  const groundTransform = `translate3d(${shadowLeft}px,0,0) scaleX(${bookW ? shadowWidth / bookW : 1})`;
 
   const getContentRect = useCallback(() => {
     if (!layout) return null;
@@ -158,7 +138,7 @@ export default function FlipbookViewer({ catalog }: { catalog: ViewerCatalog }) 
         if (err instanceof DOMException && err.name === "AbortError") return;
       }
     }
-    const ok = await copyText(url);
+    const ok = await copyToClipboard(url);
     showToast(ok ? "Lien copié" : "Copie impossible, sélectionnez l'adresse du navigateur");
   }, [catalog.slug, catalog.title, touchMode, showToast]);
 
@@ -260,64 +240,72 @@ export default function FlipbookViewer({ catalog }: { catalog: ViewerCatalog }) 
   return (
     <div ref={rootRef} className="viewer" style={themeVars} data-touch={touchMode || undefined}>
       <div className="v-main">
-      <main
-        ref={stageRef}
-        className="v-stage"
-        aria-roledescription="livre"
-        aria-label={catalog.title}
-        data-zoomed={isZoomed || undefined}
-      >
-        {!layout && <div className="v-placeholder" aria-hidden="true" />}
+        <main
+          ref={stageRef}
+          className="v-stage"
+          aria-roledescription="livre"
+          aria-label={catalog.title}
+          data-zoomed={isZoomed || undefined}
+        >
+          {!layout && <div className="v-placeholder" aria-hidden="true" />}
 
-        {layout && (
-          <div ref={zoomRef} className="v-zoom" style={{ paddingTop: layout.offsetTop }}>
-            <div className="v-shift" style={{ transform: shift ? `translate3d(${shift}px,0,0)` : undefined }}>
-              <div className="v-book" style={{ width: bookW, height: layout.pageH }}>
-                <div className="v-book-shadow" style={{ left: shadowLeft, width: shadowWidth }} aria-hidden="true" />
-                {!book.ready && !book.error && (
-                  <div className="v-book-skeleton" style={{ left: shadowLeft, width: shadowWidth }} aria-hidden="true" />
-                )}
-                <div ref={hostRef} className="v-book-host" />
+          {layout && (
+            <div ref={zoomRef} className="v-zoom" style={{ paddingTop: layout.offsetTop }}>
+              <div className="v-shift" style={{ transform: shift ? `translate3d(${shift}px,0,0)` : undefined }}>
+                <div className="v-book" style={{ width: bookW, height: layout.pageH }}>
+                  {mode === "double" ? (
+                    <>
+                      <div className="v-book-shadow" style={{ left: 0, width: pageW }} data-hidden={visible === "right" || undefined} aria-hidden="true" />
+                      <div className="v-book-shadow" style={{ left: pageW, width: pageW }} data-hidden={visible === "left" || undefined} aria-hidden="true" />
+                    </>
+                  ) : (
+                    <div className="v-book-shadow" style={{ left: 0, width: bookW }} aria-hidden="true" />
+                  )}
+                  <div className="v-book-ground" style={{ width: bookW, transform: groundTransform }} aria-hidden="true" />
+                  {!book.ready && !book.error && (
+                    <div className="v-book-skeleton" style={{ left: shadowLeft, width: shadowWidth }} aria-hidden="true" />
+                  )}
+                  <div ref={hostRef} className="v-book-host" />
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {!touchMode && isZoomed && <div ref={overlayRef} className="v-pan" aria-hidden="true" />}
+          {!touchMode && isZoomed && <div ref={overlayRef} className="v-pan" aria-hidden="true" />}
 
-        {touchMode && isZoomed && (
-          <button type="button" className="v-btn v-zoom-chip" onClick={() => resetZoom(true)} aria-label="Réinitialiser le zoom">
-            {Math.round(scale * 100)} %
-          </button>
-        )}
-
-        {book.error && (
-          <div className="v-error" role="alert">
-            <p>{book.error}</p>
-            <button type="button" className="v-btn" onClick={book.retry}>
-              <RefreshIcon />
-              Réessayer
+          {touchMode && isZoomed && (
+            <button type="button" className="v-btn v-zoom-chip" onClick={() => resetZoom(true)} aria-label="Réinitialiser le zoom">
+              {Math.round(scale * 100)} %
             </button>
-          </div>
-        )}
+          )}
 
-        <p className="sr-only" aria-live="polite">
-          {book.ready ? announce : "Chargement du catalogue"}
-        </p>
-      </main>
+          {book.error && (
+            <div className="v-error" role="alert">
+              <p>{book.error}</p>
+              <button type="button" className="v-btn" onClick={book.retry}>
+                <RefreshIcon />
+                Réessayer
+              </button>
+            </div>
+          )}
 
-      {/* Barre du haut posée sur la scène : elle flotte dans les marges du livre quand il y a la place. */}
-      <TopBar
-        ref={headerRef}
-        title={catalog.title}
-        downloadUrl={catalog.downloadUrl}
-        fullscreenSupported={fsSupported}
-        isFullscreen={isFs}
-        floating={Boolean(layout && layout.offsetTop === 0)}
-        titleMax={layout ? Math.max(120, Math.floor(layout.sideSpace - 40)) : undefined}
-        onShare={share}
-        onToggleFullscreen={toggleFullscreen}
-      />
+          <p className="sr-only" aria-live="polite">
+            {book.ready ? announce : "Chargement du catalogue"}
+          </p>
+        </main>
+
+        {/* Barre du haut posée sur la scène : elle flotte dans les marges du livre quand il y a la place. */}
+        <TopBar
+          ref={headerRef}
+          title={catalog.title}
+          downloadUrl={catalog.downloadUrl}
+          fullscreenSupported={fsSupported}
+          isFullscreen={isFs}
+          floating={Boolean(layout && layout.offsetTop === 0)}
+          titleMax={layout ? Math.max(120, Math.floor(layout.sideSpace - 40)) : undefined}
+          onShare={share}
+          onToggleFullscreen={toggleFullscreen}
+        />
       </div>
 
       <BottomBar

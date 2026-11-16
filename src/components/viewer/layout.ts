@@ -22,7 +22,7 @@ export interface HeaderMetrics {
 }
 
 /** En dessous de cette largeur de viewport : page simple. */
-export const DOUBLE_PAGE_MIN_WIDTH = 768;
+const DOUBLE_PAGE_MIN_WIDTH = 768;
 
 /**
  * Double page si la fenêtre est assez large ET plus large que haute

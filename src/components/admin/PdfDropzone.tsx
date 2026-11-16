@@ -51,7 +51,7 @@ export function PdfDropzone({ loaded, loading, error, disabled, onFile, onClear 
     return (
       <div className="flex items-center gap-5 rounded-xl border border-line bg-canvas p-4">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={loaded.thumbnail} alt="" className="h-32 w-auto rounded-md bg-white shadow-[0_6px_18px_rgba(11,53,88,0.18)]" />
+        <img src={loaded.thumbnail} alt="" className="h-32 w-auto rounded-md bg-white shadow-[0_6px_18px_rgba(27,36,83,0.18)]" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-[15px] font-semibold text-navy" title={loaded.name}>
             {loaded.name}

@@ -5,9 +5,12 @@ export type UploadTarget =
   | { path: string; kind: "supabase"; token: string }
   | { path: string; kind: "local"; url: string };
 
-export type NewCatalog = Omit<CatalogRow, "id" | "created_at">;
+/** `is_active` est omis : la base le met à true par défaut. */
+export type NewCatalog = Omit<CatalogRow, "id" | "created_at" | "is_active">;
 
-export type CatalogPatch = Partial<Pick<CatalogRow, "title" | "description" | "accent_color" | "allow_download">>;
+export type CatalogPatch = Partial<
+  Pick<CatalogRow, "title" | "description" | "accent_color" | "allow_download" | "pdf_url" | "is_active">
+>;
 
 /** Erreur métier affichable telle quelle à l'utilisateur. */
 export class StoreError extends Error {}
