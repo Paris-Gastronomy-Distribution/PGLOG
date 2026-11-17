@@ -6,7 +6,7 @@ import { useMemo, useState, useTransition } from "react";
 import { deleteCatalogAction, preparePdfAction, setCatalogActiveAction, updateCatalogAction } from "@/app/admin/actions";
 import type { AdminCatalog } from "@/lib/catalogs";
 import { BookIcon, ExternalIcon, LinkIcon, PencilIcon, PlusIcon, SearchIcon, TrashIcon } from "./icons";
-import { generateCatalogPdf, PublishError } from "./pipeline";
+import { PublishError, uploadOriginalPdf } from "./pipeline";
 import { AccentPicker, Button, DEFAULT_ACCENT, buttonClass, cardClass, copyToClipboard, Dialog, Field, IconButton, inputClass, Spinner, Toggle, useToast } from "./ui";
 
 const dateFmt = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short", year: "numeric" });
@@ -146,22 +146,23 @@ function EditDialog({ catalog, onClose }: { catalog: AdminCatalog | null; onClos
   const [accent, setAccent] = useState(catalog?.accentColor ?? DEFAULT_ACCENT);
   const [allowDownload, setAllowDownload] = useState(Boolean(catalog?.allowDownload && catalog.hasPdf));
   const [active, setActive] = useState(catalog?.active ?? true);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [pdfProgress, setPdfProgress] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  // Le PDF n'existe pas encore : il est assemblé ici à partir des pages en ligne.
+  // Le catalogue n'a pas encore de PDF : l'admin fournit le PDF d'origine, proposé tel quel.
   const needsPdf = Boolean(catalog && allowDownload && !catalog.hasPdf);
 
-  const buildPdf = async (c: AdminCatalog): Promise<string | null> => {
+  const sendPdf = async (c: AdminCatalog, file: File): Promise<string | null> => {
     const prep = await preparePdfAction(c.id);
     if (!prep.ok) return prep.error;
     try {
-      setPdfProgress("Création du PDF…");
-      await generateCatalogPdf(prep.data, title, (done, total) => setPdfProgress(`Création du PDF : page ${done}/${total}`));
+      setPdfProgress("Envoi du PDF…");
+      await uploadOriginalPdf(file, prep.data, title);
       return null;
     } catch (err) {
-      return err instanceof PublishError ? err.message : "La création du PDF a échoué. Réessayez.";
+      return err instanceof PublishError ? err.message : "L'envoi du PDF a échoué. Réessayez.";
     } finally {
       setPdfProgress(null);
     }
@@ -171,13 +172,14 @@ function EditDialog({ catalog, onClose }: { catalog: AdminCatalog | null; onClos
     startTransition(async () => {
       if (!catalog) return;
       setError(null);
+      if (needsPdf && !pdfFile) return setError("Choisissez le PDF d'origine du catalogue, ou désactivez le téléchargement.");
 
       if (active !== catalog.active) {
         const res = await setCatalogActiveAction(catalog.id, active);
         if (!res.ok) return setError(res.error);
       }
 
-      const pdfError = needsPdf ? await buildPdf(catalog) : null;
+      const pdfError = needsPdf && pdfFile ? await sendPdf(catalog, pdfFile) : null;
       if (pdfError) return setError(pdfError);
 
       const res = await updateCatalogAction({
@@ -230,9 +232,24 @@ function EditDialog({ catalog, onClose }: { catalog: AdminCatalog | null; onClos
                 description={
                   catalog.hasPdf
                     ? "Affiche le bouton « Télécharger » dans le lecteur."
-                    : "Le PDF sera créé à l'enregistrement, à partir des pages du catalogue en ligne."
+                    : "Choisissez le PDF d'origine (exporté de Canva) : il est proposé tel quel, sans perte de qualité."
                 }
               />
+              {needsPdf && (
+                <label className="mt-3 flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-line bg-white px-3 py-2.5 text-[13px] text-slate transition hover:border-brand focus-within:border-brand">
+                  <span className={buttonClass("secondary", "sm")}>Choisir le PDF</span>
+                  <span className="min-w-0 truncate">{pdfFile ? pdfFile.name : "Aucun fichier choisi"}</span>
+                  <input
+                    type="file"
+                    accept="application/pdf,.pdf"
+                    className="sr-only"
+                    onChange={(e) => {
+                      setPdfFile(e.target.files?.[0] ?? null);
+                      setError(null);
+                    }}
+                  />
+                </label>
+              )}
             </div>
             <div className="p-4">
               <Toggle

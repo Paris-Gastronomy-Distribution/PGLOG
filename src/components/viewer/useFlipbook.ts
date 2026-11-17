@@ -4,6 +4,14 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObje
 import type { PageFlip } from "page-flip";
 import { nextSpreadStart, prevSpreadStart, spreadStart, type BookLayout } from "./layout";
 
+/**
+ * Pages haute définition voulues :
+ *   - "off"    : pages par défaut partout ;
+ *   - "zoom"   : HD pour les pages visibles (zoom en cours) ;
+ *   - "screen" : HD pour la double page visible et ses voisines (écran très dense).
+ */
+export type HdMode = "off" | "zoom" | "screen";
+
 /** Pages chargées d'emblée (spécification : les 4 premières). */
 const EAGER_PAGES = 4;
 /** Fenêtre de préchargement autour de la page courante. */
@@ -15,6 +23,9 @@ interface Options {
   /** Élément géré par React dans lequel le conteneur StPageFlip est inséré. */
   hostRef: RefObject<HTMLDivElement | null>;
   pages: string[];
+  /** Pages haute définition (même ordre), ou null. */
+  hdPages: string[] | null;
+  hd: HdMode;
   layout: BookLayout | null;
   /** Écran tactile : gestes gérés par le viewer, pas par StPageFlip. */
   touchMode: boolean;
@@ -23,12 +34,13 @@ interface Options {
 
 /* ---------- Pages (DOM impératif, réutilisé entre ré-initialisations) ---------- */
 
-function createPageElements(urls: string[], title: string): HTMLElement[] {
+function createPageElements(urls: string[], hdUrls: string[] | null, title: string): HTMLElement[] {
   return urls.map((url, i) => {
     const page = document.createElement("div");
     page.className = "fb-page";
     page.dataset.index = String(i);
     page.dataset.src = url;
+    if (hdUrls?.[i]) page.dataset.hd = hdUrls[i];
 
     const skeleton = document.createElement("div");
     skeleton.className = "fb-page__skeleton";
@@ -73,6 +85,12 @@ function loadPage(page: HTMLElement | undefined) {
       });
   };
   img.onerror = () => {
+    // Page HD illisible : retour à la page par défaut, sans afficher d'erreur.
+    if (page.dataset.hdState === "loaded") {
+      page.dataset.hdState = "error";
+      img.src = src;
+      return;
+    }
     if (!retried) {
       retried = true;
       img.src = `${src}${src.includes("?") ? "&" : "?"}retry=${Date.now()}`;
@@ -81,6 +99,45 @@ function loadPage(page: HTMLElement | undefined) {
     page.dataset.state = "error";
   };
   img.src = src;
+}
+
+/**
+ * Passe une page en haute définition. L'image HD est téléchargée et décodée
+ * à part, puis substituée : la page reste affichée pendant tout ce temps,
+ * sans clignotement.
+ */
+function upgradePage(page: HTMLElement | undefined) {
+  const hd = page?.dataset.hd;
+  const img = page?.querySelector("img");
+  if (!page || !hd || !img || page.dataset.hdState) return;
+
+  loadPage(page);
+  page.dataset.hdState = "loading";
+  const probe = new Image();
+  probe.decoding = "async";
+  probe.onload = () => {
+    void probe
+      .decode()
+      .catch(() => undefined)
+      .then(() => {
+        if (page.dataset.hdState !== "loading") return; // revenue entre-temps à la page par défaut
+        page.dataset.hdState = "loaded";
+        img.src = hd;
+      });
+  };
+  probe.onerror = () => {
+    if (page.dataset.hdState === "loading") page.dataset.hdState = "error";
+  };
+  probe.src = hd;
+}
+
+/** Revient à la page par défaut (libère la mémoire de l'image HD, lourde sur téléphone). */
+function downgradePage(page: HTMLElement | undefined) {
+  const state = page?.dataset.hdState;
+  if (!page || !state || state === "error") return;
+  delete page.dataset.hdState;
+  const img = page.querySelector("img");
+  if (state === "loaded" && img && page.dataset.src) img.src = page.dataset.src;
 }
 
 /**
@@ -110,7 +167,7 @@ function sizeContainer(el: HTMLElement, layout: BookLayout) {
 
 /* ---------- Hook ---------- */
 
-export function useFlipbook({ hostRef, pages, layout, touchMode, title }: Options) {
+export function useFlipbook({ hostRef, pages, hdPages, hd, layout, touchMode, title }: Options) {
   const pageCount = pages.length;
   const [current, setCurrent] = useState(0);
   /** Page visée pendant une animation (sert au recentrage du livre). */
@@ -131,9 +188,9 @@ export function useFlipbook({ hostRef, pages, layout, touchMode, title }: Option
   });
 
   const getPageEls = useCallback(() => {
-    pageElsRef.current ??= createPageElements(pages, title);
+    pageElsRef.current ??= createPageElements(pages, hdPages, title);
     return pageElsRef.current;
-  }, [pages, title]);
+  }, [pages, hdPages, title]);
 
   const loadRange = useCallback(
     (from: number, to: number) => {
@@ -265,6 +322,23 @@ export function useFlipbook({ hostRef, pages, layout, touchMode, title }: Option
     sizeContainer(container, L);
     pf.update();
   }, [pageW, pageH, ready]);
+
+  // Haute définition seulement là où elle se voit : moins de données et de mémoire.
+  useEffect(() => {
+    const els = pageElsRef.current;
+    const L = layoutRef.current;
+    if (!els || !L || !ready) return;
+    const keep = new Set<number>();
+    if (hd !== "off") {
+      const span = L.mode === "double" ? 2 : 1;
+      const around = hd === "screen" ? span : 0;
+      for (const index of new Set([current, target ?? current])) {
+        const start = spreadStart(index, pageCount, L.mode);
+        for (let i = start - around; i < start + span + around; i++) if (i >= 0 && i < pageCount) keep.add(i);
+      }
+    }
+    els.forEach((el, i) => (keep.has(i) ? upgradePage(el) : downgradePage(el)));
+  }, [hd, current, target, ready, mode, pageCount]);
 
   /* ---------- API ---------- */
 

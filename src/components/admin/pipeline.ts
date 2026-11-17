@@ -6,38 +6,44 @@ import {
   finalizeCatalogAction,
   prepareUploadAction,
 } from "@/app/admin/actions";
-import { coverPath, ogImagePath, PAGE_RENDER_WIDTH, pagePath, pdfPath, STORAGE_BUCKET } from "@/lib/catalog-urls";
-import { buildImagePdf, POINTS_PER_PIXEL, type PdfPageImage } from "@/lib/image-pdf";
+import {
+  coverPath,
+  MAX_PDF_BYTES,
+  ogImagePath,
+  PAGE_HD_WIDTH,
+  PAGE_RENDER_WIDTH,
+  pageHdPath,
+  pagePath,
+  pdfPath,
+  STORAGE_BUCKET,
+} from "@/lib/catalog-urls";
+import { prepareOriginalPdf } from "@/lib/original-pdf";
 import type { UploadTarget } from "@/lib/store/types";
 import { getBrowserSupabase } from "@/lib/supabase/browser";
 
 /**
- * Conversion PDF → images, ENTIÈREMENT dans le navigateur de l'admin :
- * pdf.js rend chaque page sur un <canvas> (1600 px de large), export WebP
- * 0,82, puis envoi direct vers le stockage (4 envois en parallèle, 3 essais).
- * Le PDF téléchargeable est assemblé à partir des mêmes rendus : il montre
- * exactement les pages du lecteur.
+ * Conversion PDF → images, ENTIÈREMENT dans le navigateur de l'admin.
+ *
+ * Chaque page est calculée une seule fois par pdf.js, directement depuis le
+ * PDF vectoriel, en haute définition (3200 px de large). On en tire :
+ *   - la page HD (WebP 0,9), que le lecteur charge au zoom et sur les écrans
+ *     très denses ;
+ *   - la page par défaut (1600 px, WebP 0,92), réduite depuis la HD : ce
+ *     suréchantillonnage donne un texte et des filets plus fins qu'un calcul
+ *     direct à 1600 px.
+ * Le PDF téléchargeable est le PDF d'origine, sans recompression.
+ * Envoi direct vers le stockage (4 pages en parallèle, 3 essais).
  */
 
-const MAX_PDF_BYTES = 50 * 1024 * 1024;
-const WEBP_QUALITY = 0.82;
+const WEBP_QUALITY = 0.92;
+const WEBP_HD_QUALITY = 0.9;
 const COVER_WIDTH = 400;
+/** Plafonds du calcul HD (pages très allongées) : limites des <canvas> des navigateurs. */
+const HD_MAX_PIXELS = 40_000_000;
+const HD_MAX_SIDE = 16_384;
 const UPLOAD_CONCURRENCY = 4;
-const MAX_BUFFERED = 8; // pages rendues en attente d'envoi (mémoire)
+const MAX_BUFFERED = 6; // pages calculées en attente d'envoi (mémoire)
 const RETRY_DELAYS = [800, 2000, 5000];
-
-/** PDF téléchargeable : sous la limite de 50 Mo par fichier du stockage, avec une marge. */
-const PDF_BUDGET_BYTES = 46 * 1024 * 1024;
-/** Plafond par page, même pour un petit catalogue. */
-const PDF_PAGE_MAX_BYTES = 1.5 * 1024 * 1024;
-/** Réglages JPEG essayés dans l'ordre jusqu'à tenir dans le budget de la page. */
-const PDF_JPEG_STEPS = [
-  { width: 1600, quality: 0.86 },
-  { width: 1600, quality: 0.74 },
-  { width: 1280, quality: 0.72 },
-  { width: 1024, quality: 0.68 },
-  { width: 800, quality: 0.62 },
-] as const;
 
 export class PublishError extends Error {}
 
@@ -99,6 +105,13 @@ async function renderPage(page: PDFPageProxy, width: number, canvas: HTMLCanvasE
   await page.render({ canvas, viewport, background: "#ffffff" }).promise;
 }
 
+/** Largeur HD d'une page : 3200 px, sauf pour une page si allongée qu'un navigateur ne saurait pas la dessiner. */
+function hdWidthFor(page: PDFPageProxy): number {
+  const { width, height } = page.getViewport({ scale: 1 });
+  const ratio = width / height;
+  return Math.floor(Math.min(PAGE_HD_WIDTH, Math.sqrt(HD_MAX_PIXELS * ratio), HD_MAX_SIDE * ratio, HD_MAX_SIDE));
+}
+
 /** Miniature d'aperçu (zone de dépôt). */
 export async function renderThumbnail(pdf: PDFDocumentProxy, width = 360): Promise<string> {
   const page = await pdf.getPage(1);
@@ -114,14 +127,23 @@ function toBlob(canvas: HTMLCanvasElement, type: string, quality: number): Promi
   );
 }
 
-function scaledCopy(source: HTMLCanvasElement, width: number): HTMLCanvasElement {
-  const c = document.createElement("canvas");
-  c.width = width;
-  c.height = Math.round((source.height * width) / source.width);
-  const ctx = c.getContext("2d")!;
+async function toWebp(canvas: HTMLCanvasElement, quality: number): Promise<Blob> {
+  const blob = await toBlob(canvas, "image/webp", quality);
+  if (blob.type !== "image/webp") {
+    throw new PublishError("Ce navigateur ne sait pas créer d'images WebP. Utilisez Chrome, Edge ou Firefox.");
+  }
+  return blob;
+}
+
+/** Réduction de haute qualité de `source` à la largeur `width`, dans `target` (ou une nouvelle toile). */
+function scaledCopy(source: HTMLCanvasElement, width: number, target = document.createElement("canvas")): HTMLCanvasElement {
+  target.width = Math.min(width, source.width);
+  target.height = Math.round((source.height * target.width) / source.width);
+  const ctx = target.getContext("2d")!;
+  ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
-  ctx.drawImage(source, 0, 0, c.width, c.height);
-  return c;
+  ctx.drawImage(source, 0, 0, target.width, target.height);
+  return target;
 }
 
 /** Aperçu réseaux sociaux 1200×630 : couverture centrée sur fond sombre. */
@@ -152,48 +174,7 @@ async function makeOgImage(cover: HTMLCanvasElement): Promise<Blob> {
   ctx.restore();
   ctx.imageSmoothingQuality = "high";
   ctx.drawImage(cover, x, y, w, drawH);
-  return toBlob(c, "image/jpeg", 0.86);
-}
-
-/* ---------- PDF téléchargeable ---------- */
-
-/** Budget JPEG d'une page pour que le PDF complet tienne sous la limite de stockage. */
-const pdfPageBudget = (pageCount: number) => Math.min(PDF_PAGE_MAX_BYTES, PDF_BUDGET_BYTES / pageCount);
-
-/**
- * Encode une page rendue en JPEG pour le PDF, en réduisant qualité puis
- * définition jusqu'à tenir dans le budget de la page.
- */
-async function encodePdfPage(
-  source: HTMLCanvasElement,
-  budget: number,
-  points: { width: number; height: number },
-): Promise<PdfPageImage> {
-  let image: PdfPageImage | null = null;
-  for (const step of PDF_JPEG_STEPS) {
-    const canvas = step.width < source.width ? scaledCopy(source, step.width) : source;
-    const jpeg = await toBlob(canvas, "image/jpeg", step.quality);
-    image = {
-      jpeg,
-      pixelWidth: canvas.width,
-      pixelHeight: canvas.height,
-      pointWidth: points.width,
-      pointHeight: points.height,
-    };
-    if (canvas !== source) canvas.width = canvas.height = 0;
-    if (jpeg.size <= budget) break;
-  }
-  return image!;
-}
-
-function assemblePdf(pages: PdfPageImage[], title: string): Blob {
-  const pdf = buildImagePdf(pages, title);
-  if (pdf.size > MAX_PDF_BYTES) {
-    throw new PublishError(
-      `Le PDF téléchargeable dépasserait 50 Mo (${formatBytes(pdf.size)}). Désactivez le téléchargement pour ce catalogue.`,
-    );
-  }
-  return pdf;
+  return toBlob(c, "image/jpeg", 0.9);
 }
 
 /* ---------- Envois ---------- */
@@ -323,44 +304,41 @@ export async function publishCatalog(
   if (!prep.ok) throw new PublishError(prep.error);
   const targets = new Map(prep.data.targets.map((t) => [t.path, t]));
   const queue = createQueue(UPLOAD_CONCURRENCY);
+  const hdCanvas = document.createElement("canvas");
   const canvas = document.createElement("canvas");
-  const pdfPages: PdfPageImage[] = [];
-  const pdfBudget = pdfPageBudget(total);
 
   try {
     progress.stage = "pages";
     emit();
     let pageWidth = 0;
     let pageHeight = 0;
+    let hdWidth = 0;
 
     for (let n = 1; n <= total; n++) {
       checkAbort();
       const page = await pdf.getPage(n);
-      await renderPage(page, PAGE_RENDER_WIDTH, canvas);
-      if (withPdf) {
-        // Format de page d'origine (points PDF), image identique à celle du lecteur.
-        const { width, height } = page.getViewport({ scale: 1 });
-        pdfPages.push(await encodePdfPage(canvas, pdfBudget, { width, height }));
-      }
-      const blob = await toBlob(canvas, "image/webp", WEBP_QUALITY);
-      if (blob.type !== "image/webp") {
-        throw new PublishError("Ce navigateur ne sait pas créer d'images WebP. Utilisez Chrome, Edge ou Firefox.");
-      }
+      await renderPage(page, hdWidthFor(page), hdCanvas);
+      page.cleanup();
+      const hdBlob = await toWebp(hdCanvas, WEBP_HD_QUALITY);
+      scaledCopy(hdCanvas, PAGE_RENDER_WIDTH, canvas);
+      const blob = await toWebp(canvas, WEBP_QUALITY);
 
       if (n === 1) {
         pageWidth = canvas.width;
         pageHeight = canvas.height;
-        const cover = scaledCopy(canvas, COVER_WIDTH);
-        const coverBlob = await toBlob(cover, "image/webp", WEBP_QUALITY);
+        hdWidth = hdCanvas.width;
+        const coverBlob = await toWebp(scaledCopy(canvas, COVER_WIDTH), WEBP_QUALITY);
         const ogBlob = await makeOgImage(scaledCopy(canvas, 800));
         progress.coverPreview = URL.createObjectURL(coverBlob);
         queue.push(() => uploadFile(targets.get(coverPath(slug)), coverBlob, "image/webp", "de la miniature"));
         queue.push(() => uploadFile(targets.get(ogImagePath(slug)), ogBlob, "image/jpeg", "de l'aperçu"));
       }
-      page.cleanup();
 
       queue.push(async () => {
-        await uploadFile(targets.get(pagePath(slug, n)), blob, "image/webp", `de la page ${n}`);
+        await Promise.all([
+          uploadFile(targets.get(pagePath(slug, n)), blob, "image/webp", `de la page ${n}`),
+          uploadFile(targets.get(pageHdPath(slug, n)), hdBlob, "image/webp", `de la page ${n} (HD)`),
+        ]);
         progress.uploaded++;
         emit();
       });
@@ -375,8 +353,7 @@ export async function publishCatalog(
     if (withPdf) {
       progress.stage = "pdf";
       emit();
-      const file = assemblePdf(pdfPages, input.title.trim());
-      pdfPages.length = 0;
+      const file = await prepareOriginalPdf(await pdf.getData(), input.title.trim(), total);
       await uploadFile(targets.get(pdfPath(slug)), file, "application/pdf", "du PDF");
       checkAbort();
     }
@@ -392,6 +369,7 @@ export async function publishCatalog(
       pageCount: total,
       pageWidth,
       pageHeight,
+      hdWidth,
     });
     if (!result.ok) throw new PublishError(result.error);
     return result.data;
@@ -400,67 +378,34 @@ export async function publishCatalog(
     await abortUploadAction(slug).catch(() => undefined);
     throw err instanceof PublishError ? err : new PublishError("La publication a échoué. Réessayez.");
   } finally {
-    canvas.width = 0;
-    canvas.height = 0;
-    pdfPages.length = 0;
+    for (const c of [hdCanvas, canvas]) {
+      c.width = 0;
+      c.height = 0;
+    }
   }
 }
 
 /* ---------- PDF d'un catalogue déjà publié ---------- */
 
-export interface PdfSource {
-  pages: string[];
-  target: UploadTarget;
-  pageWidth: number | null;
-  pageHeight: number | null;
-}
-
-async function loadPageImage(url: string): Promise<ImageBitmap> {
-  return withRetry(async () => {
-    const res = await fetch(url, { mode: "cors", cache: "no-store" });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return createImageBitmap(await res.blob());
-  });
-}
-
 /**
- * Assemble et envoie le PDF d'un catalogue publié sans PDF, à partir des
- * pages déjà en ligne (les images exactes du lecteur).
+ * Ajoute le PDF d'origine à un catalogue publié sans PDF. Le fichier choisi
+ * doit avoir le même nombre de pages que le catalogue.
  */
-export async function generateCatalogPdf(
-  source: PdfSource,
+export async function uploadOriginalPdf(
+  file: File,
+  prep: { target: UploadTarget; pageCount: number },
   title: string,
-  onProgress: (done: number, total: number) => void,
 ): Promise<void> {
-  const total = source.pages.length;
-  const budget = pdfPageBudget(total);
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d")!;
-  const pdfPages: PdfPageImage[] = [];
-
+  const pdf = await openPdf(file);
   try {
-    for (let i = 0; i < total; i++) {
-      let bitmap: ImageBitmap;
-      try {
-        bitmap = await loadPageImage(source.pages[i]);
-      } catch {
-        throw new PublishError(`La page ${i + 1} n'a pas pu être téléchargée. Vérifiez votre connexion puis réessayez.`);
-      }
-      canvas.width = bitmap.width;
-      canvas.height = bitmap.height;
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(bitmap, 0, 0);
-      bitmap.close();
-
-      const w = source.pageWidth ?? canvas.width;
-      const h = source.pageHeight ?? canvas.height;
-      pdfPages.push(await encodePdfPage(canvas, budget, { width: w * POINTS_PER_PIXEL, height: h * POINTS_PER_PIXEL }));
-      onProgress(i + 1, total);
+    if (pdf.numPages !== prep.pageCount) {
+      throw new PublishError(
+        `Ce PDF a ${pdf.numPages} page${pdf.numPages > 1 ? "s" : ""}, le catalogue en a ${prep.pageCount}. Choisissez le PDF qui a servi à le publier.`,
+      );
     }
-    await uploadFile(source.target, assemblePdf(pdfPages, title.trim()), "application/pdf", "du PDF");
+    const blob = await prepareOriginalPdf(await pdf.getData(), title.trim(), pdf.numPages);
+    await uploadFile(prep.target, blob, "application/pdf", "du PDF");
   } finally {
-    canvas.width = 0;
-    canvas.height = 0;
+    void pdf.loadingTask.destroy();
   }
 }

@@ -19,6 +19,8 @@ export const DEMO_CATALOG: ViewerCatalog = {
   pageWidth: 1600,
   pageHeight: 2263,
   pages: Array.from({ length: PAGE_COUNT }, (_, i) => `/demo/page-${String(i + 1).padStart(3, "0")}.webp`),
+  hdPages: null,
+  hdWidth: null,
   ogImage: "/demo/og.jpg",
   downloadUrl: "/demo/demo.pdf",
 };

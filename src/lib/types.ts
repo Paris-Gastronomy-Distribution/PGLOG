@@ -7,6 +7,12 @@ export interface CatalogRow {
   page_count: number;
   page_width: number | null;
   page_height: number | null;
+  /**
+   * Largeur en px des pages haute définition ({slug}/page-001-hd.webp…),
+   * null pour un catalogue publié avant leur ajout. Absent si la colonne
+   * n'existe pas encore en base.
+   */
+  hd_width?: number | null;
   cover_url: string | null;
   accent_color: string;
   allow_download: boolean;
@@ -32,6 +38,10 @@ export interface ViewerCatalog {
   pageHeight: number;
   /** URL de chaque page, dans l'ordre. */
   pages: string[];
+  /** Pages haute définition (même ordre), ou null si le catalogue n'en a pas. */
+  hdPages: string[] | null;
+  /** Largeur en px des pages haute définition, ou null. */
+  hdWidth: number | null;
   /** Image d'aperçu 1200×630 (absolue, ou relative au site). */
   ogImage: string;
   /** URL de téléchargement du PDF, ou null si non autorisé. */

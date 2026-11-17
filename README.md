@@ -3,9 +3,10 @@
 Vous créez un catalogue sur Canva, vous l'exportez en PDF et vous l'envoyez ici. Vous obtenez un lien propre (`https://votre-domaine.fr/c/mon-catalogue`) qui ouvre un livre feuilletable, sans watermark ni mention de la plateforme.
 
 - **100 % gratuit** : Netlify (plan Free, usage commercial autorisé) + Supabase (plan Free). Aucune API payante.
-- **Conversion dans le navigateur** : le PDF est découpé en images WebP par votre navigateur (pdf.js) au moment de l'upload. Le serveur ne fait aucun calcul lourd et les clients ne téléchargent jamais le PDF pour feuilleter.
+- **Conversion dans le navigateur** : votre navigateur (pdf.js) calcule chaque page en haute définition à partir du PDF vectoriel au moment de l'upload. Le serveur ne fait aucun calcul lourd et les clients ne téléchargent jamais le PDF pour feuilleter.
+- **Qualité du PDF d'origine** : pages par défaut en 1600 px, et pages HD en 3200 px que le lecteur charge seul quand on zoome ou sur un grand écran Retina. Le petit texte reste net même à 400 %.
 - **Aperçu soigné** : titre, description et image de couverture apparaissent quand le lien est collé dans WhatsApp, LinkedIn ou un mail.
-- **PDF téléchargeable** : mêmes pages que le catalogue en ligne, ouverture en doubles pages.
+- **PDF téléchargeable** : votre fichier Canva d'origine, sans aucune recompression (texte net et sélectionnable, liens cliquables), réglé pour s'ouvrir en doubles pages.
 - **Liens permanents** : un lien fonctionne tant que vous ne le désactivez pas depuis l'administration.
 
 > **Avancement** : le code est complet.
@@ -161,9 +162,9 @@ Exemple avec `catalogues.mondomaine.fr`. Un sous-domaine est recommandé : il ne
 
 | Service | Limite (plan gratuit) | Ce que ça représente |
 |---|---|---|
-| Supabase Storage | 1 Go de stockage | ~150 à 300 catalogues de 24 pages sans PDF. Un PDF stocké pour téléchargement peut peser jusqu'à 50 Mo. |
+| Supabase Storage | 1 Go de stockage | Un catalogue de 24 pages occupe environ 30 à 45 Mo (pages normales + pages HD), plus son PDF d'origine s'il est téléchargeable (souvent 5 à 20 Mo, 50 Mo au maximum). Soit une vingtaine de catalogues en ligne en même temps. Supprimez les anciens catalogues pour libérer de la place. |
 | Supabase Storage | 50 Mo max par fichier | Taille maximale d'un PDF |
-| Supabase egress | 5 Go/mois | ~1 000 à 2 000 lectures complètes d'un catalogue de 24 pages. Le chargement progressif ne télécharge que les pages réellement feuilletées. |
+| Supabase egress | 5 Go/mois | ~500 lectures complètes d'un catalogue de 24 pages (≈ 10 Mo chacune). Le chargement progressif ne télécharge que les pages réellement feuilletées, et les pages HD seulement au zoom ou sur grand écran Retina. Chaque téléchargement du PDF compte aussi. |
 | Supabase | **Pause après 7 jours sans activité** | La fonction planifiée Netlify quotidienne (`netlify/functions/keepalive.mts`, qui appelle `/api/keepalive`) interroge la base pour éviter la pause. Si le projet est quand même en pause : dashboard Supabase → *Restore project*. |
 | Netlify Free | 300 crédits/mois | Un déploiement en production coûte 15 crédits. Le trafic et les fonctions en consomment aussi, mais peu : les images sont servies par Supabase. Suivez la jauge dans le tableau de bord de l'équipe Netlify. Si les crédits du mois sont épuisés, Netlify met les projets en pause jusqu'au mois suivant. |
 
@@ -203,7 +204,8 @@ Ce qui reste de votre côté, par ordre d'importance :
 
 ```
 Canva ─PDF─▶ /admin (navigateur)
-               │ pdf.js : chaque page → <canvas> 1600 px → WebP 0.82
+               │ pdf.js : chaque page → <canvas> 3200 px → WebP HD 0.90
+               │ réduction → 1600 px → WebP 0.92 (pages par défaut)
                │ + miniature 400 px + aperçu og.jpg 1200×630
                ▼
         URLs d'upload signées (générées par le serveur après vérif. du mot de passe)
@@ -219,7 +221,8 @@ Canva ─PDF─▶ /admin (navigateur)
 - **Indexation** : les pages catalogue sont marquées `noindex` et n'apparaissent pas dans Google.
 - **Cache** : chaque page catalogue est mise en cache 5 minutes (ISR) puis servie instantanément. L'admin invalide le cache à la création et à la suppression d'un catalogue.
 - **Images** : servies directement par Supabase (`<img>`), sans passer par l'optimiseur d'images de l'hébergeur, ce qui évite ses quotas.
-- **PDF téléchargeable** : assemblé dans le navigateur de l'admin à partir des rendus des pages (JPEG, qualité ajustée page par page pour rester sous la limite de 50 Mo), format de page d'origine, affichage en doubles pages (`/PageLayout /TwoPageRight`).
+- **Qualité des pages** : chaque page est calculée une seule fois depuis le PDF vectoriel, en 3200 px (page HD), puis réduite à 1600 px (page par défaut). Ce suréchantillonnage affine le texte et les filets. Le lecteur mesure l'écran (taille × densité × zoom) : au-delà de 110 % d'agrandissement de la page par défaut, il charge les pages HD, seulement pour la double page visible et ses voisines, puis revient aux pages par défaut pour ménager la mémoire des téléphones. Un catalogue publié avant cette version n'a pas de pages HD : republiez-le pour en profiter.
+- **PDF téléchargeable** : le PDF d'origine. Son contenu n'est pas modifié (vérifié octet pour octet : images, polices, textes) ; `pdf-lib` y ajoute seulement l'ouverture en doubles pages (`/PageLayout /TwoPageRight`) et le titre du catalogue. Si le fichier ne se laisse pas réécrire, il est envoyé tel quel. Pour un catalogue publié sans PDF, l'admin choisit le PDF d'origine dans **Modifier** (même nombre de pages exigé).
 - **Désactivation** : colonne `is_active` ; un lien désactivé affiche une page sobre « Ce catalogue n'est plus en ligne ».
 - **Identité visuelle** : logo dans `public/brand/`, icône d'onglet (chapeau, fichier d'origine) dans `src/app/icon.svg`, `favicon.ico` et `apple-icon.png` pour les anciens clients et l'écran d'accueil iPhone.
 - **Catalogue de démonstration** : `/c/demo` est servi depuis `public/demo/` (fichiers générés par `node scripts/generate-demo.mjs`). Visible tant que Supabase n'est pas configuré, puis masqué automatiquement (sauf `ENABLE_DEMO=true`).

@@ -228,7 +228,8 @@ export function NewCatalogFlow({ siteHost, isLocal }: { siteHost: string; isLoca
             <PdfDropzone loaded={loaded} loading={fileLoading} error={fileError} onFile={(f) => void handleFile(f)} onClear={clearFile} />
           </div>
           <p className="mt-4 text-[13px] leading-relaxed text-slate">
-            Le PDF est converti en images directement dans ce navigateur : rien n&apos;est envoyé avant que vous cliquiez sur « Publier ».
+            Les pages sont calculées en haute définition directement dans ce navigateur, à partir du PDF vectoriel : rien n&apos;est envoyé avant
+            que vous cliquiez sur « Publier ».
           </p>
         </section>
 
@@ -309,7 +310,7 @@ export function NewCatalogFlow({ siteHost, isLocal }: { siteHost: string; isLoca
                 checked={allowDownload}
                 onChange={setAllowDownload}
                 label="Proposer le téléchargement en PDF"
-                description="Ajoute un bouton « Télécharger » dans le lecteur. Le PDF reprend exactement les pages du catalogue en ligne et s'ouvre en doubles pages."
+                description="Ajoute un bouton « Télécharger » dans le lecteur. Le PDF proposé est votre fichier d'origine, sans aucune perte de qualité, réglé pour s'ouvrir en doubles pages."
               />
             </div>
           </div>
@@ -378,7 +379,7 @@ function PublishingView({
       state: stage === "prepare" ? "todo" : stage === "pages" ? "active" : "done",
     },
     ...(withPdf
-      ? [{ label: "Création du PDF téléchargeable", state: (stage === "pdf" ? "active" : stage === "finalize" ? "done" : "todo") as "done" | "active" | "todo" }]
+      ? [{ label: "Envoi du PDF d'origine", state: (stage === "pdf" ? "active" : stage === "finalize" ? "done" : "todo") as "done" | "active" | "todo" }]
       : []),
     { label: "Mise en ligne", state: stage === "finalize" ? "active" : "todo" },
   ];

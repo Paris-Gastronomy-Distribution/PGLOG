@@ -8,7 +8,7 @@ import { accentPalette } from "@/lib/color";
 import type { ViewerCatalog } from "@/lib/types";
 import { CheckIcon, RefreshIcon } from "./icons";
 import { pageLabel, spreadStart, visiblePart } from "./layout";
-import { useFlipbook } from "./useFlipbook";
+import { useFlipbook, type HdMode } from "./useFlipbook";
 import { usePanOverlay, useTouchGestures } from "./useGestures";
 import { useStageLayout } from "./useStageLayout";
 import { useZoomPan } from "./useZoomPan";
@@ -33,6 +33,26 @@ function useCoarsePointer(): boolean {
   return coarse;
 }
 
+/** Densité de l'écran (pixels physiques par pixel CSS), suivie si la fenêtre change d'écran ou de zoom. */
+function useDevicePixelRatio(): number {
+  const [dpr, setDpr] = useState(1);
+  useEffect(() => {
+    let mq: MediaQueryList | null = null;
+    const update = () => {
+      setDpr(window.devicePixelRatio || 1);
+      mq?.removeEventListener("change", update);
+      mq = window.matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`);
+      mq.addEventListener("change", update);
+    };
+    update();
+    return () => mq?.removeEventListener("change", update);
+  }, []);
+  return dpr;
+}
+
+/** Au-delà de 10 % d'agrandissement de la page par défaut, on passe à la HD. */
+const HD_THRESHOLD = 1.1;
+
 export default function FlipbookViewer({ catalog }: { catalog: ViewerCatalog }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLElement>(null);
@@ -47,7 +67,17 @@ export default function FlipbookViewer({ catalog }: { catalog: ViewerCatalog }) 
   const touchMode = useCoarsePointer();
   const headerRef = useRef<HTMLElement>(null);
   const layout = useStageLayout(stageRef, headerRef, ratio);
-  const book = useFlipbook({ hostRef, pages: catalog.pages, layout, touchMode, title: catalog.title });
+  const dpr = useDevicePixelRatio();
+  const [hd, setHd] = useState<HdMode>("off");
+  const book = useFlipbook({
+    hostRef,
+    pages: catalog.pages,
+    hdPages: catalog.hdPages,
+    hd,
+    layout,
+    touchMode,
+    title: catalog.title,
+  });
 
   /* ---------- Géométrie : partie visible, recentrage, ombre ---------- */
 
@@ -73,6 +103,16 @@ export default function FlipbookViewer({ catalog }: { catalog: ViewerCatalog }) 
   const maxScale = layout ? Math.min(4, Math.max(2, 2000 / Math.max(1, layout.pageW))) : 3;
   const zoom = useZoomPan({ stageRef, contentRef: zoomRef, getContentRect, maxScale });
   const { reset: resetZoom, zoomBy, isZoomed, scale } = zoom;
+
+  // Pixels physiques nécessaires pour afficher une page nette, à 100 % puis au zoom actuel.
+  const hdMode: HdMode = (() => {
+    if (!catalog.hdPages || !layout) return "off";
+    const limit = catalog.pageWidth * HD_THRESHOLD;
+    const needed = layout.pageW * dpr;
+    if (needed > limit) return "screen";
+    return needed * scale > limit ? "zoom" : "off";
+  })();
+  useEffect(() => setHd(hdMode), [hdMode]);
 
   // Le zoom revient à 100 % quand la page ou la mise en page change.
   const currentPage = book.current;

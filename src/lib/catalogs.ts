@@ -1,6 +1,6 @@
 import "server-only";
 import { cache } from "react";
-import { FALLBACK_PAGE_SIZE, isValidSlug, ogImagePath, pagePath, pdfDownloadUrl, withVersion } from "./catalog-urls";
+import { FALLBACK_PAGE_SIZE, isValidSlug, ogImagePath, pageHdPath, pagePath, pdfDownloadUrl, withVersion } from "./catalog-urls";
 import { DEMO_CATALOG, DEMO_SLUG } from "./demo-catalog";
 import { getSiteUrl } from "./site";
 import { getBackendStatus, getStore } from "./store";
@@ -17,13 +17,14 @@ function pageRatio(row: CatalogRow): number {
 }
 
 /** URLs publiques des pages, dans l'ordre. */
-export function pageUrls(row: CatalogRow, store: CatalogStore): string[] {
+function pageUrls(row: CatalogRow, store: CatalogStore, path: (slug: string, n: number) => string): string[] {
   const version = fileVersion(row);
-  return Array.from({ length: row.page_count }, (_, i) => withVersion(store.publicUrl(pagePath(row.slug, i + 1)), version));
+  return Array.from({ length: row.page_count }, (_, i) => withVersion(store.publicUrl(path(row.slug, i + 1)), version));
 }
 
 function toViewerCatalog(row: CatalogRow, store: CatalogStore): ViewerCatalog {
   const hasSize = Boolean(row.page_width && row.page_height);
+  const hdWidth = row.hd_width ?? null;
   return {
     slug: row.slug,
     title: row.title,
@@ -31,7 +32,9 @@ function toViewerCatalog(row: CatalogRow, store: CatalogStore): ViewerCatalog {
     accentColor: row.accent_color,
     pageWidth: hasSize ? row.page_width! : FALLBACK_PAGE_SIZE.width,
     pageHeight: hasSize ? row.page_height! : FALLBACK_PAGE_SIZE.height,
-    pages: pageUrls(row, store),
+    pages: pageUrls(row, store, pagePath),
+    hdPages: hdWidth ? pageUrls(row, store, pageHdPath) : null,
+    hdWidth,
     ogImage: withVersion(store.publicUrl(ogImagePath(row.slug)), fileVersion(row)),
     downloadUrl: row.allow_download && row.pdf_url ? pdfDownloadUrl(row.pdf_url, row.slug) : null,
   };

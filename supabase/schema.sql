@@ -26,6 +26,11 @@ create table if not exists public.catalogs (
   page_width     int         check (page_width  > 0),
   page_height    int         check (page_height > 0),
 
+  -- Largeur en px des pages haute définition ({slug}/page-001-hd.webp…),
+  -- chargées par le viewer au zoom et sur les écrans très denses.
+  -- NULL : catalogue publié avant leur ajout (pas de HD).
+  hd_width       int         check (hd_width > 0),
+
   -- Miniature 400 px de la couverture (liste de l'admin).
   cover_url      text,
 
@@ -47,6 +52,7 @@ create table if not exists public.catalogs (
 alter table public.catalogs add column if not exists page_width  int;
 alter table public.catalogs add column if not exists page_height int;
 alter table public.catalogs add column if not exists is_active   boolean not null default true;
+alter table public.catalogs add column if not exists hd_width    int check (hd_width > 0);
 
 create index if not exists catalogs_created_at_idx on public.catalogs (created_at desc);
 
@@ -54,6 +60,7 @@ comment on table  public.catalogs              is 'Catalogues digitaux (flipbook
 comment on column public.catalogs.page_width   is 'Largeur en px des pages rendues (WebP).';
 comment on column public.catalogs.page_height  is 'Hauteur en px des pages rendues (WebP).';
 comment on column public.catalogs.is_active    is 'false : le lien /c/{slug} affiche « catalogue indisponible ».';
+comment on column public.catalogs.hd_width     is 'Largeur en px des pages haute définition (WebP), NULL si absentes.';
 
 
 -- -----------------------------------------------------------------------------
@@ -88,10 +95,11 @@ grant select, insert, update, delete on table public.catalogs to service_role;
 -- (c'est ce que charge le viewer, sans authentification).
 --
 -- Arborescence d'un catalogue :
---   {slug}/page-001.webp … page-NNN.webp   pages, 1600 px de large, WebP q0.82
+--   {slug}/page-001.webp … page-NNN.webp   pages, 1600 px de large, WebP q0.92
+--   {slug}/page-001-hd.webp …              pages HD, 3200 px de large, WebP q0.90 (zoom, écrans denses)
 --   {slug}/cover.webp                      miniature 400 px (liste admin)
 --   {slug}/og.jpg                          aperçu 1200×630 (WhatsApp, LinkedIn, mail)
---   {slug}/{slug}.pdf                      PDF téléchargeable, mêmes pages que le lecteur
+--   {slug}/{slug}.pdf                      PDF téléchargeable : le PDF d'origine, sans recompression
 --
 -- Limite : 50 Mo par fichier (= plafond du plan gratuit Supabase).
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)

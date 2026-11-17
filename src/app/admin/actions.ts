@@ -5,8 +5,8 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { requireAdmin, UnauthorizedError } from "@/lib/admin-session";
 import { ADMIN_COOKIE, createSessionToken, passwordMatches, SESSION_MAX_AGE } from "@/lib/auth";
-import { coverPath, ogImagePath, pagePath, pdfPath, withVersion } from "@/lib/catalog-urls";
-import { catalogPublicUrl, pageUrls, toAdminCatalog, type AdminCatalog } from "@/lib/catalogs";
+import { coverPath, ogImagePath, PAGE_HD_WIDTH, pageHdPath, pagePath, pdfPath, withVersion } from "@/lib/catalog-urls";
+import { catalogPublicUrl, toAdminCatalog, type AdminCatalog } from "@/lib/catalogs";
 import { slugIssue } from "@/lib/slug";
 import { getStore } from "@/lib/store";
 import { StoreError, type CatalogStore, type UploadTarget } from "@/lib/store/types";
@@ -124,6 +124,7 @@ export async function prepareUploadAction(input: {
 
     const paths = [
       ...Array.from({ length: input.pageCount }, (_, i) => pagePath(input.slug, i + 1)),
+      ...Array.from({ length: input.pageCount }, (_, i) => pageHdPath(input.slug, i + 1)),
       coverPath(input.slug),
       ogImagePath(input.slug),
       ...(input.withPdf ? [pdfPath(input.slug)] : []),
@@ -143,6 +144,8 @@ export interface FinalizeInput {
   pageCount: number;
   pageWidth: number;
   pageHeight: number;
+  /** Largeur des pages haute définition envoyées ({slug}/page-001-hd.webp…). */
+  hdWidth: number;
 }
 
 export async function finalizeCatalogAction(input: FinalizeInput): Promise<ActionResult<{ url: string; slug: string }>> {
@@ -152,8 +155,9 @@ export async function finalizeCatalogAction(input: FinalizeInput): Promise<Actio
     checkSlug(input.slug);
     checkTexts(input.title, input.description);
     if (!ACCENT.test(input.accentColor)) throw new InputError("Couleur d'accent invalide.");
-    const dims = [input.pageCount, input.pageWidth, input.pageHeight];
+    const dims = [input.pageCount, input.pageWidth, input.pageHeight, input.hdWidth];
     if (!dims.every((n) => Number.isInteger(n) && n > 0)) throw new InputError("Dimensions de pages invalides.");
+    if (input.hdWidth > PAGE_HD_WIDTH) throw new InputError("Dimensions de pages invalides.");
 
     await store.insert({
       slug: input.slug,
@@ -162,6 +166,7 @@ export async function finalizeCatalogAction(input: FinalizeInput): Promise<Actio
       page_count: input.pageCount,
       page_width: input.pageWidth,
       page_height: input.pageHeight,
+      hd_width: input.hdWidth,
       cover_url: store.publicUrl(coverPath(input.slug)),
       accent_color: input.accentColor,
       allow_download: input.withPdf,
@@ -195,7 +200,7 @@ export async function updateCatalogAction(input: {
   description: string;
   accentColor: string;
   allowDownload: boolean;
-  /** true : le navigateur vient d'envoyer un PDF généré (voir preparePdfAction). */
+  /** true : le navigateur vient d'envoyer le PDF d'origine (voir preparePdfAction). */
   pdfUploaded?: boolean;
 }): Promise<ActionResult<AdminCatalog>> {
   try {
@@ -222,21 +227,16 @@ export async function updateCatalogAction(input: {
 }
 
 /**
- * Pour un catalogue publié sans PDF : URLs de ses pages et destination
- * d'envoi du PDF, que le navigateur de l'admin assemble à partir des pages.
+ * Pour un catalogue publié sans PDF : destination d'envoi du PDF d'origine
+ * choisi par l'admin, et nombre de pages attendu (contrôle de cohérence).
  */
-export async function preparePdfAction(id: string): Promise<
-  ActionResult<{ pages: string[]; target: UploadTarget; pageWidth: number | null; pageHeight: number | null }>
-> {
+export async function preparePdfAction(id: string): Promise<ActionResult<{ target: UploadTarget; pageCount: number }>> {
   try {
     await requireAdmin();
     const store = requireStore();
     const row = await requireCatalog(store, id);
     const [target] = await store.createUploadTargets([pdfPath(row.slug)]);
-    return {
-      ok: true,
-      data: { pages: pageUrls(row, store), target, pageWidth: row.page_width, pageHeight: row.page_height },
-    };
+    return { ok: true, data: { target, pageCount: row.page_count } };
   } catch (err) {
     return failure(err);
   }
