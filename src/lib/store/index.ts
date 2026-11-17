@@ -1,4 +1,5 @@
 import "server-only";
+import { isHosted } from "../site";
 import { getSupabaseAdmin } from "../supabase/server";
 import { createLocalStore } from "./local-store";
 import { createSupabaseStore } from "./supabase-store";
@@ -14,12 +15,12 @@ const SUPABASE_VARS = ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KE
 /**
  * Supabase dès que ses 3 variables sont définies. Sinon, sur votre ordinateur
  * (npm run dev ou npm run start), stockage local sur le disque pour pouvoir
- * tout tester. Jamais sur Vercel : son disque n'est pas conservé.
+ * tout tester. Jamais chez un hébergeur : son disque n'est pas conservé.
  */
 export function getBackendStatus(): BackendStatus {
   const missing = SUPABASE_VARS.filter((name) => !process.env[name]);
   if (missing.length === 0) return { kind: "supabase" };
-  if (process.env.VERCEL !== "1") return { kind: "local" };
+  if (!isHosted()) return { kind: "local" };
   return { kind: "missing", missing: [...missing] };
 }
 

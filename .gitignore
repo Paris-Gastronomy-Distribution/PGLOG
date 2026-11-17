@@ -43,3 +43,6 @@ next-env.d.ts
 
 # mode local (développement sans Supabase)
 /.local-data/
+
+# netlify (état local du CLI)
+.netlify

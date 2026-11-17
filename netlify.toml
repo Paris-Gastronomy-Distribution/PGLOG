@@ -1,0 +1,6 @@
+# Configuration Netlify. Le site Next.js est pris en charge automatiquement
+# par l'adaptateur Next.js de Netlify ; le cron quotidien est dans
+# netlify/functions/keepalive.mts.
+[build]
+  command = "npm run build"
+  publish = ".next"

@@ -1,17 +1,30 @@
 /**
+ * true sur un hébergeur (Vercel ou Netlify), false sur votre ordinateur.
+ * Netlify ne fournit à l'exécution que URL, SITE_NAME et SITE_ID : SITE_ID
+ * sert donc de marqueur.
+ */
+export function isHosted(): boolean {
+  return process.env.VERCEL === "1" || Boolean(process.env.SITE_ID);
+}
+
+/**
  * URL publique du site (liens absolus des aperçus OG / Twitter).
- * Ordre : NEXT_PUBLIC_SITE_URL → domaine de production Vercel → localhost.
+ * Ordre : NEXT_PUBLIC_SITE_URL → adresse principale Netlify (domaine
+ * personnalisé s'il y en a un) → domaine de production Vercel → localhost.
  */
 export function getSiteUrl(): URL {
-  const explicit = process.env.NEXT_PUBLIC_SITE_URL?.trim();
-  if (explicit) {
+  const candidates = [
+    process.env.NEXT_PUBLIC_SITE_URL?.trim(),
+    process.env.SITE_ID ? process.env.URL : undefined,
+    process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : undefined,
+  ];
+  for (const value of candidates) {
+    if (!value) continue;
     try {
-      return new URL(explicit);
+      return new URL(value);
     } catch {
-      // valeur invalide : on passe au fallback
+      // valeur invalide : on passe à la suivante
     }
   }
-  const vercel = process.env.VERCEL_PROJECT_PRODUCTION_URL;
-  if (vercel) return new URL(`https://${vercel}`);
   return new URL(`http://localhost:${process.env.PORT ?? 3000}`);
 }
