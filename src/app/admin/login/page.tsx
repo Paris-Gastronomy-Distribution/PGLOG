@@ -31,7 +31,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
             <p className="font-semibold">Mot de passe non configuré</p>
             <p className="mt-2">
               Définissez la variable <code className="rounded bg-white px-1.5 py-0.5">ADMIN_PASSWORD</code> dans <code className="rounded bg-white px-1.5 py-0.5">.env.local</code> (en local)
-              ou dans Vercel → Environment Variables, puis redémarrez / redéployez.
+              ou dans Netlify → Project configuration → Environment variables, puis redémarrez / redéployez.
             </p>
           </div>
         )}

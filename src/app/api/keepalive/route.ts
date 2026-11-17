@@ -1,8 +1,8 @@
 import { getSupabaseAdmin } from "@/lib/supabase/server";
 
 /**
- * Appelé chaque jour par le cron de l'hébergeur (Netlify :
- * netlify/functions/keepalive.mts ; Vercel : vercel.json) : une requête
+ * Appelé chaque jour par la fonction planifiée Netlify
+ * (netlify/functions/keepalive.mts) : une requête
  * légère sur la base suffit à éviter la mise en pause du projet Supabase
  * gratuit (pause après 7 jours sans activité).
  *

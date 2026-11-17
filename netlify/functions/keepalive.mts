@@ -1,7 +1,7 @@
 /**
  * Cron Netlify (fonction planifiée) : chaque jour à 6 h UTC, appelle
  * /api/keepalive pour éviter la mise en pause du projet Supabase gratuit
- * (pause après 7 jours sans activité). Équivalent du cron de vercel.json.
+ * (pause après 7 jours sans activité). Remplace l'ancien cron Vercel.
  *
  * URL est fournie par Netlify (adresse principale du site) ; CRON_SECRET est
  * la variable d'environnement du site, exigée par /api/keepalive.

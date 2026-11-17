@@ -1,9 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "crons": [
+  "redirects": [
     {
-      "path": "/api/keepalive",
-      "schedule": "0 6 * * *"
+      "source": "/:path*",
+      "destination": "https://pgd-catalogues.netlify.app/:path*",
+      "permanent": true
     }
   ]
 }

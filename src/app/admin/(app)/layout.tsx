@@ -46,7 +46,7 @@ export default async function AdminAppLayout({ children }: { children: React.Rea
         {backend.kind === "missing" ? (
           <div className={`${cardClass} mx-auto max-w-lg p-6`}>
             <h1 className="text-lg font-bold text-navy">Configuration Supabase requise</h1>
-            <p className="mt-2 text-[14px] text-slate">Ajoutez ces variables dans Vercel → Settings → Environment Variables, puis redéployez :</p>
+            <p className="mt-2 text-[14px] text-slate">Ajoutez ces variables dans Netlify → Project configuration → Environment variables, puis redéployez :</p>
             <ul className="mt-3 space-y-1 font-mono text-[13px] text-navy">
               {backend.missing.map((name) => (
                 <li key={name}>· {name}</li>
