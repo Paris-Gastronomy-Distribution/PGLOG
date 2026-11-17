@@ -184,7 +184,6 @@ Un lien seul ne bloque jamais l'envoi d'un e-mail. Le classement en spam dépend
 
 - page catalogue qui répond immédiatement (y compris aux robots de sécurité d'Outlook, *Safe Links*, qui ouvrent le lien avant votre client) ;
 - aucune redirection, aucun formulaire, aucun traceur sur les pages clients ;
-- page d'accueil du domaine neutre (pas de page de mot de passe à la racine, un motif typique de l'hameçonnage) ;
 - titre, description et image d'aperçu propres pour l'aperçu du lien dans Outlook ;
 - bouton **E-mail** de l'administration : brouillon en texte simple, un seul lien écrit en clair.
 

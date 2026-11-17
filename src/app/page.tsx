@@ -1,18 +1,10 @@
-import type { Metadata } from "next";
-import { StatusScreen } from "@/components/StatusScreen";
-
-export const metadata: Metadata = { title: "Catalogues" };
+import { redirect } from "next/navigation";
 
 /**
- * Racine du site : page neutre, sans formulaire ni redirection. Les filtres de
- * messagerie (Outlook / Microsoft Defender, Gmail…) analysent aussi la racine
- * du domaine d'un lien ; une page de mot de passe à cet endroit ressemble à de
- * l'hameçonnage. L'administration reste accessible sur /admin.
+ * La racine du site mène à l'administration : sans session, le middleware
+ * renvoie vers /admin/login. Vos clients, eux, ne reçoivent que des liens
+ * /c/{catalogue}.
  */
 export default function Home() {
-  return (
-    <StatusScreen title="Catalogues">
-      <p>Pour consulter un catalogue, ouvrez le lien qui vous a été envoyé.</p>
-    </StatusScreen>
-  );
+  redirect("/admin");
 }
